@@ -27,6 +27,13 @@ export async function saveSection(section, data, token) {
   });
 }
 
+export async function deleteSection(section, token) {
+  return req(`/api/content/${section}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 export async function uploadFile(file, token) {
   const res = await fetch(
     `${API}/api/upload?filename=${encodeURIComponent(file.name)}&content_type=${encodeURIComponent(file.type || "application/octet-stream")}`,

@@ -17,6 +17,7 @@ import Feedback from "./pages/Feedback";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Admin from "./pages/Admin";
+import Manage from "./pages/Manage";
 
 export default function App() {
   const location = useLocation();
@@ -61,7 +62,7 @@ export default function App() {
   return (
     <>
       <div className="gradient-backdrop" />
-      <ParticlesBackground />
+      {displayLocation.pathname !== "/manage" && <ParticlesBackground />}
       <Navbar />
       <main ref={pageRef} className="page-fade" key={displayLocation.pathname}>
         <Routes location={displayLocation}>
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/manage" element={<Manage />} />
         </Routes>
         <Footer />
       </main>

@@ -29,7 +29,7 @@ export default function Navbar() {
       ))}
       {user ? (
         <>
-          <Link to="/admin">Admin</Link>
+          <Link to="/manage">Manage</Link>
           <a href="#!" onClick={signOut} style={{ color: "#f87171" }}>
             Logout
           </a>

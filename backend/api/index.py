@@ -102,6 +102,21 @@ async def upsert_section(section: str, body: dict, _: dict = Depends(require_adm
     return {"ok": True, "section": section}
 
 
+@app.get("/api/content/{section}")
+async def get_section(section: str):
+    rows = await sb("portfolio_content",
+                    params={"select": "section,data", "section": f"eq.{section}"})
+    if not rows:
+        raise HTTPException(status_code=404, detail="Section not found")
+    return rows[0]["data"]
+
+
+@app.delete("/api/content/{section}")
+async def delete_section(section: str, _: dict = Depends(require_admin)):
+    await sb("portfolio_content", "DELETE", params={"section": f"eq.{section}"})
+    return {"ok": True, "section": section}
+
+
 # ---------------------------------------------------------------- upload
 @app.post("/api/upload")
 async def upload(filename: str, content_type: str, data: bytes,

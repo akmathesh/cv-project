@@ -1,0 +1,292 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { useContent } from "../context/ContentContext";
+import { saveSection, deleteSection, uploadFile, getFeedback, approveFeedback } from "../lib/api";
+
+/* ---------- building blocks (application-form style) ---------- */
+
+function AfField({ label, value, onChange, type = "text", placeholder, full }) {
+  return (
+    <div className={`af-field ${full ? "full" : ""}`}>
+      <label>{label}</label>
+      <input type={type} value={value ?? ""} placeholder={placeholder}
+             onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function AfArea({ label, value, onChange, rows = 3, full = true }) {
+  return (
+    <div className={`af-field ${full ? "full" : ""}`}>
+      <label>{label}</label>
+      <textarea rows={rows} value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function AfUpload({ label, value, onChange, token, accept = "image/*" }) {
+  const [busy, setBusy] = useState(false);
+  const pick = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    try {
+      const { url } = await uploadFile(file, token);
+      onChange(url);
+    } catch (err) {
+      alert(`Upload failed: ${err.message}`);
+    }
+    setBusy(false);
+  };
+  return (
+    <div className="af-field full">
+      <label>{label}</label>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <input style={{ flex: 1, minWidth: 200 }} value={value ?? ""}
+               placeholder="https://… or upload a file →"
+               onChange={(e) => onChange(e.target.value)} />
+        <label className="af-upload">
+          {busy ? "Uploading…" : "⬆ Upload"}
+          <input type="file" accept={accept} style={{ display: "none" }} onChange={pick} />
+        </label>
+      </div>
+      {value ? <img src={value} alt="" className="af-thumb" /> : null}
+    </div>
+  );
+}
+
+/* section wrapper with its own save button */
+function FormSection({ num, title, onSave, onClear, children }) {
+  const [saved, setSaved] = useState(false);
+  return (
+    <div className="fs">
+      <div className="fs-head">
+        <span className="fs-num">{num}</span>
+        <span className="fs-title">{title}</span>
+        <div className="fs-actions">
+          <button className="af-btn small ghosted" onClick={onClear}>Reset</button>
+          <button className="af-btn small" onClick={async () => {
+            await onSave();
+            setSaved(true);
+            setTimeout(() => setSaved(false), 1800);
+          }}>{saved ? "Saved ✓" : "Save"}</button>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/* ---------- the page ---------- */
+
+export default function Manage() {
+  const { user, token, loading } = useAuth();
+  const { content, reload } = useContent();
+  const [draft, setDraft] = useState(null);
+  const [feedback, setFeedback] = useState([]);
+
+  useEffect(() => setDraft(JSON.parse(JSON.stringify(content))), [content]);
+  useEffect(() => {
+    if (token) getFeedback(token).then(setFeedback).catch(() => {});
+  }, [token]);
+
+  if (loading) return <section className="appform"><p className="muted">Loading…</p></section>;
+
+  if (!user)
+    return (
+      <section className="appform">
+        <div className="af-sheet" style={{ textAlign: "center", padding: "60px 34px" }}>
+          <h2 className="af-title">Restricted area</h2>
+          <p className="muted" style={{ margin: "14px 0 22px" }}>
+            Sign in to open the content manager.
+          </p>
+          <Link className="af-btn" to="/login">Go to Login</Link>
+        </div>
+      </section>
+    );
+
+  if (!draft) return <section className="appform"><p className="muted">Loading content…</p></section>;
+
+  const set = (section, patch) =>
+    setDraft((d) => ({ ...d, [section]: { ...(d[section] || {}), ...patch } }));
+
+  const save = async (section) => {
+    try {
+      await saveSection(section, draft[section] || {}, token);
+      await reload();
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  const clear = async (section) => {
+    if (!window.confirm(`Reset the "${section}" section? The site will show placeholders until you save new content.`)) return;
+    try {
+      await deleteSection(section, token);
+      await reload();
+      setDraft((d) => ({ ...d, [section]: {} }));
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  const p = draft.profile || {};
+  const about = draft.about || {};
+  const projects = draft.projects?.items || [];
+  const skills = draft.skills?.items || [];
+  const certs = draft.certifications?.items || [];
+  const social = draft.social || {};
+  const cta = draft.cta || {};
+
+  return (
+    <section className="appform">
+      <div className="af-sheet">
+        <div className="af-header">
+          <div>
+            <div className="af-title">Site Content Manager</div>
+            <p className="muted" style={{ fontSize: "0.85rem", marginTop: 4 }}>
+              Application form — edit every section of the public site.
+            </p>
+          </div>
+          <div className="muted" style={{ fontSize: "0.8rem", textAlign: "right" }}>
+            Signed in as<br /><strong style={{ color: "var(--text)" }}>{user.email}</strong>
+          </div>
+        </div>
+
+        {/* 01 — identity */}
+        <FormSection num="01" title="Personal Details" onSave={() => save("profile")} onClear={() => clear("profile")}>
+          <div className="af-grid">
+            <AfField label="Full name" value={p.name} onChange={(v) => set("profile", { name: v })} />
+            <AfField label="Title / role" value={p.title} onChange={(v) => set("profile", { title: v })} />
+            <AfField label="Tagline" value={p.tagline} onChange={(v) => set("profile", { tagline: v })} full />
+            <AfUpload label="Profile image" value={p.profile_image_url} token={token}
+                      onChange={(v) => set("profile", { profile_image_url: v })} />
+            <AfUpload label="Banner image (home background)" value={p.banner_image_url} token={token}
+                      onChange={(v) => set("profile", { banner_image_url: v })} />
+            <AfUpload label="Resume (PDF)" value={p.resume_url} token={token} accept="application/pdf,.pdf"
+                      onChange={(v) => set("profile", { resume_url: v })} />
+          </div>
+        </FormSection>
+
+        {/* 02 — about */}
+        <FormSection num="02" title="About" onSave={() => save("about")} onClear={() => clear("about")}>
+          <div className="af-grid">
+            <AfField label="Heading" value={about.heading} onChange={(v) => set("about", { heading: v })} />
+          </div>
+          {(about.paragraphs || []).map((para, i) => (
+            <AfArea key={i} label={`Paragraph ${i + 1}`} value={para}
+                    onChange={(v) => set("about", { paragraphs: (about.paragraphs || []).map((x, j) => (j === i ? v : x)) })} />
+          ))}
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <button className="af-btn small ghosted" onClick={() => set("about", { paragraphs: [...(about.paragraphs || []), ""] })}>+ Add paragraph</button>
+            {(about.paragraphs || []).length > 0 && (
+              <button className="af-btn small ghosted" onClick={() => set("about", { paragraphs: about.paragraphs.slice(0, -1) })}>− Remove last</button>
+            )}
+          </div>
+        </FormSection>
+
+        {/* 03 — projects */}
+        <FormSection num="03" title="Projects" onSave={() => save("projects")} onClear={() => clear("projects")}>
+          {projects.map((item, i) => (
+            <div className="af-item" key={i}>
+              <div className="af-grid">
+                <AfField label="Title" value={item.title} onChange={(v) => set("projects", { items: projects.map((x, j) => j === i ? { ...x, title: v } : x) })} />
+                <AfField label="Live link" value={item.link} onChange={(v) => set("projects", { items: projects.map((x, j) => j === i ? { ...x, link: v } : x) })} />
+                <AfArea label="Description" value={item.description}
+                        onChange={(v) => set("projects", { items: projects.map((x, j) => j === i ? { ...x, description: v } : x) })} />
+                <AfField label="Tech (comma separated)" value={(item.tech || []).join(", ")} full
+                         onChange={(v) => set("projects", { items: projects.map((x, j) => j === i ? { ...x, tech: v.split(",").map((s) => s.trim()).filter(Boolean) } : x) })} />
+                <AfUpload label="Project image" value={item.image_url} token={token} full
+                          onChange={(v) => set("projects", { items: projects.map((x, j) => j === i ? { ...x, image_url: v } : x) })} />
+              </div>
+              <button className="af-btn small ghosted" style={{ marginTop: 10 }}
+                      onClick={() => set("projects", { items: projects.filter((_, j) => j !== i) })}>
+                ✕ Remove project
+              </button>
+            </div>
+          ))}
+          <button className="af-btn small" onClick={() => set("projects", { items: [...projects, { title: "", description: "", tech: [], link: "", image_url: "" }] })}>
+            + Add project
+          </button>
+        </FormSection>
+
+        {/* 04 — skills */}
+        <FormSection num="04" title="Skills" onSave={() => save("skills")} onClear={() => clear("skills")}>
+          <div className="af-grid">
+            <AfField label="Skills (comma separated)" value={skills.join(", ")} full
+                     onChange={(v) => set("skills", { items: v.split(",").map((s) => s.trim()).filter(Boolean) })} />
+          </div>
+        </FormSection>
+
+        {/* 05 — certifications */}
+        <FormSection num="05" title="Certifications" onSave={() => save("certifications")} onClear={() => clear("certifications")}>
+          {certs.map((item, i) => (
+            <div className="af-item" key={i}>
+              <div className="af-grid">
+                <AfField label="Title" value={item.title} onChange={(v) => set("certifications", { items: certs.map((x, j) => j === i ? { ...x, title: v } : x) })} />
+                <AfField label="Issuer" value={item.issuer} onChange={(v) => set("certifications", { items: certs.map((x, j) => j === i ? { ...x, issuer: v } : x) })} />
+                <AfField label="Year" value={item.year} onChange={(v) => set("certifications", { items: certs.map((x, j) => j === i ? { ...x, year: v } : x) })} />
+                <AfField label="Certificate link" value={item.link} onChange={(v) => set("certifications", { items: certs.map((x, j) => j === i ? { ...x, link: v } : x) })} />
+              </div>
+              <button className="af-btn small ghosted" style={{ marginTop: 10 }}
+                      onClick={() => set("certifications", { items: certs.filter((_, j) => j !== i) })}>
+                ✕ Remove certification
+              </button>
+            </div>
+          ))}
+          <button className="af-btn small" onClick={() => set("certifications", { items: [...certs, { title: "", issuer: "", year: "", link: "" }] })}>
+            + Add certification
+          </button>
+        </FormSection>
+
+        {/* 06 — social */}
+        <FormSection num="06" title="Reach Me — Social Links" onSave={() => save("social")} onClear={() => clear("social")}>
+          <div className="af-grid">
+            <AfField label="LinkedIn URL" value={social.linkedin} onChange={(v) => set("social", { linkedin: v })} />
+            <AfField label="Instagram URL" value={social.instagram} onChange={(v) => set("social", { instagram: v })} />
+            <AfField label="WhatsApp (https://wa.me/…)" value={social.whatsapp} onChange={(v) => set("social", { whatsapp: v })} />
+            <AfField label="Mobile number" value={social.phone} onChange={(v) => set("social", { phone: v })} />
+            <AfField label="Email address" value={social.email} onChange={(v) => set("social", { email: v })} full />
+          </div>
+        </FormSection>
+
+        {/* 07 — cta */}
+        <FormSection num="07" title="Call to Action" onSave={() => save("cta")} onClear={() => clear("cta")}>
+          <div className="af-grid">
+            <AfField label="Heading" value={cta.heading} onChange={(v) => set("cta", { heading: v })} full />
+            <AfField label="Text" value={cta.text} onChange={(v) => set("cta", { text: v })} full />
+            <AfField label="Button label" value={cta.button_label} onChange={(v) => set("cta", { button_label: v })} />
+            <AfField label="Button link (e.g. /contact)" value={cta.button_link} onChange={(v) => set("cta", { button_link: v })} />
+          </div>
+        </FormSection>
+
+        {/* 08 — feedback */}
+        <div className="fs">
+          <div className="fs-head">
+            <span className="fs-num">08</span>
+            <span className="fs-title">Feedback Moderation</span>
+          </div>
+          {!feedback.length && <p className="muted" style={{ marginBottom: 10 }}>No feedback submitted yet.</p>}
+          {feedback.map((f) => (
+            <div className="af-item" key={f.id}>
+              <strong>{f.name}</strong> {f.role ? <span className="muted">({f.role})</span> : null} — {"⭐".repeat(f.rating || 5)}
+              <p className="muted" style={{ margin: "6px 0 10px" }}>{f.message}</p>
+              <button className="af-btn small"
+                      onClick={() => approveFeedback(f.id, !f.approved, token)
+                        .then(() => setFeedback(feedback.map((x) => (x.id === f.id ? { ...x, approved: !x.approved } : x))))
+                        .catch((e) => alert(e.message))}>
+                {f.approved ? "Unapprove" : "Approve"}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="af-sign">
+          <span>Applicant signature: <em style={{ color: "var(--text)" }}>{user.email}</em></span>
+          <span>Date: {new Date().toLocaleDateString()}</span>
+        </div>
+      </div>
+    </section>
+  );
+}

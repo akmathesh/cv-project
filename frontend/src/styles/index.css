@@ -288,3 +288,92 @@ button { font-family: inherit; }
   .section { padding-top: 110px; }
   .social-dock { right: 12px; bottom: 12px; }
 }
+
+/* ---- application-form style content manager (/manage) ---- */
+.appform { max-width: 880px; margin: 0 auto; padding: 110px 20px 70px; min-height: 100vh; }
+.af-sheet {
+  background: rgba(12, 12, 24, 0.82);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 34px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+.af-header {
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 10px;
+  border-bottom: 2px dashed rgba(255, 255, 255, 0.2);
+  padding-bottom: 18px; margin-bottom: 6px;
+}
+.af-title {
+  font-size: clamp(1.4rem, 3vw, 1.9rem); font-weight: 800;
+  background: var(--grad);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  display: inline-block;
+}
+.fs { border-bottom: 1px dashed rgba(255, 255, 255, 0.15); padding: 26px 0 16px; }
+.fs:last-of-type { border-bottom: none; }
+.fs-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.fs-num {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--grad); color: #fff;
+  display: grid; place-items: center; font-weight: 700; font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.fs-title { font-weight: 700; font-size: 1rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.fs-actions { margin-left: auto; display: flex; gap: 8px; }
+.af-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 22px; }
+.af-grid .full { grid-column: 1 / -1; }
+.af-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 4px; }
+.af-field label {
+  font-size: 0.7rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+}
+.af-field input, .af-field textarea, .af-field select {
+  background: transparent;
+  border: none; border-bottom: 1.5px solid rgba(255, 255, 255, 0.25);
+  color: var(--text); padding: 7px 2px;
+  font-size: 0.95rem; font-family: inherit; outline: none;
+  transition: border-color 0.2s;
+  border-radius: 0;
+}
+.af-field input:focus, .af-field textarea:focus, .af-field select:focus {
+  border-bottom-color: var(--accent-2);
+}
+.af-field textarea { border: 1.5px solid rgba(255, 255, 255, 0.18); border-radius: 10px; padding: 10px; resize: vertical; }
+.af-item {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px; padding: 16px; margin-bottom: 12px;
+}
+.af-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 20px; border-radius: 999px; border: none; cursor: pointer;
+  font-size: 0.85rem; font-weight: 600; color: #fff;
+  background: var(--grad); background-size: 200% 200%;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.af-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(124, 58, 237, 0.4); }
+.af-btn.small { padding: 6px 14px; font-size: 0.75rem; }
+.af-btn.ghosted { background: transparent; border: 1px solid var(--card-border); color: var(--muted); }
+.af-btn.ghosted:hover { color: var(--text); box-shadow: none; }
+.af-upload {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--card-border); background: rgba(255, 255, 255, 0.06);
+  font-size: 0.8rem; font-weight: 600; color: var(--text);
+  transition: background 0.2s;
+}
+.af-upload:hover { background: rgba(124, 58, 237, 0.25); }
+.af-thumb { margin-top: 10px; max-height: 110px; border-radius: 10px; border: 1px solid var(--card-border); }
+.af-sign {
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  border-top: 2px dashed rgba(255, 255, 255, 0.2);
+  margin-top: 14px; padding-top: 18px;
+  color: var(--muted); font-size: 0.85rem;
+}
+@media (max-width: 700px) {
+  .appform { padding-top: 100px; }
+  .af-sheet { padding: 24px 18px; }
+  .af-grid { grid-template-columns: 1fr; }
+}
