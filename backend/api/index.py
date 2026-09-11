@@ -51,7 +51,7 @@ async def sb(path: str, method: str = "GET", *, json_body=None, data=None,
                                     content=data)
     if resp.status_code >= 400:
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
-    return resp
+    return resp.json()
 
 
 async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
