@@ -1,9 +1,114 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useContent } from "../context/ContentContext";
 import { saveSection, deleteSection, uploadFile, getFeedback, approveFeedback, updateAdminCredentials } from "../lib/api";
 import { supabase } from "../lib/supabaseClient";
+
+/* ---------- image cropper (drag + zoom, exports JPEG) ---------- */
+
+function CropperModal({ src, aspect, onDone, onCancel }) {
+  const W = 520;
+  const H = Math.round(520 / aspect);
+  const [zoom, setZoom] = useState(1);
+  const [pos, setPos] = useState({ x: 0, y: 0 }); // top-left of image in viewport
+  const [dims, setDims] = useState({ w: 0, h: 0 });
+  const [natural, setNatural] = useState({ w: 0, h: 0 });
+  const dragRef = useRef(null);
+  const imgElRef = useRef(null);
+
+  // fit image so it covers the viewport at zoom = 1
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      const base = Math.max(W / img.width, H / img.height);
+      const w = img.width * base;
+      const h = img.height * base;
+      setNatural({ w: img.width, h: img.height });
+      setDims({ w, h });
+      setPos({ x: (W - w) / 2, y: (H - h) / 2 });
+    };
+    img.src = src;
+  }, [src]);
+
+  const clamp = (p, z) => {
+    const base = Math.max(W / natural.w, H / natural.h);
+    const w = natural.w * base * z;
+    const h = natural.h * base * z;
+    return {
+      x: Math.min(0, Math.max(W - w, p.x)),
+      y: Math.min(0, Math.max(H - h, p.y)),
+    };
+  };
+
+  const onZoom = (z) => {
+    // keep the centre fixed while zooming
+    const cx = pos.x + dims.w / 2;
+    const cy = pos.y + dims.h / 2;
+    const base = Math.max(W / natural.w, H / natural.h);
+    const nw = natural.w * base * z;
+    const nh = natural.h * base * z;
+    const p = clamp({ x: cx - nw / 2, y: cy - nh / 2 }, z);
+    setZoom(z);
+    setPos(p);
+  };
+
+  const onPointerDown = (e) => {
+    dragRef.current = { sx: e.clientX, sy: e.clientY, px: pos.x, py: pos.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e) => {
+    if (!dragRef.current) return;
+    const d = dragRef.current;
+    setPos(clamp({ x: d.px + (e.clientX - d.sx), y: d.py + (e.clientY - d.sy) }, zoom));
+  };
+  const onPointerUp = () => { dragRef.current = null; };
+
+  const cropAndUpload = async () => {
+    const base = Math.max(W / natural.w, H / natural.h);
+    const dw = natural.w * base * zoom;
+    const dh = natural.h * base * zoom;
+    const k = 900 / W; // export at 900px wide for quality
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(W * k);
+    canvas.height = Math.round(H * k);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(imgElRef.current,
+      (-pos.x / dw) * natural.w, (-pos.y / dh) * natural.h,
+      (W / dw) * natural.w, (H / dh) * natural.h,
+      0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.9));
+    onDone(blob);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.75)", display: "grid", placeItems: "center", padding: 16 }}
+         onClick={onCancel}>
+      <div className="af-sheet" style={{ maxWidth: W + 48, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+        <div className="af-header">
+          <div className="af-title" style={{ fontSize: "1.1rem" }}>Crop image — drag to position, slide to zoom</div>
+        </div>
+        <div style={{ marginTop: 16, position: "relative", width: "100%", aspectRatio: `${W}/${H}`, overflow: "hidden", borderRadius: 12, border: "1px solid var(--card-border)", background: "#000", touchAction: "none" }}
+             onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
+          {natural.w > 0 && (
+            <img src={src} alt="" draggable={false}
+                 ref={imgElRef}
+                 style={{ position: "absolute", left: pos.x, top: pos.y, width: dims.w, height: dims.h, maxWidth: "none", userSelect: "none", cursor: "grab" }} />
+          )}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "16px 0" }}>
+          <span className="muted" style={{ fontSize: "0.8rem" }}>Zoom</span>
+          <input type="range" min="1" max="4" step="0.05" value={zoom} style={{ flex: 1 }}
+                 onChange={(e) => onZoom(+e.target.value)} />
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="af-btn" onClick={cropAndUpload}>✓ Crop &amp; use</button>
+          <button className="af-btn ghosted" onClick={onCancel}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ---------- building blocks (application-form style) ---------- */
 
@@ -26,11 +131,11 @@ function AfArea({ label, value, onChange, rows = 3, full = true }) {
   );
 }
 
-function AfUpload({ label, value, onChange, token, accept = "image/*" }) {
+function AfUpload({ label, value, onChange, token, accept = "image/*", aspect }) {
   const [busy, setBusy] = useState(false);
-  const pick = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const [cropSrc, setCropSrc] = useState(null);
+
+  const doUpload = async (file) => {
     setBusy(true);
     try {
       const { url } = await uploadFile(file, token);
@@ -40,6 +145,18 @@ function AfUpload({ label, value, onChange, token, accept = "image/*" }) {
     }
     setBusy(false);
   };
+
+  const pick = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (aspect && file.type.startsWith("image/")) {
+      setCropSrc(URL.createObjectURL(file)); // open the crop tool
+      return;
+    }
+    await doUpload(file);
+  };
+
   return (
     <div className="af-field full">
       <label>{label}</label>
@@ -53,6 +170,14 @@ function AfUpload({ label, value, onChange, token, accept = "image/*" }) {
         </label>
       </div>
       {value ? <img src={value} alt="" className="af-thumb" /> : null}
+      {cropSrc && (
+        <CropperModal src={cropSrc} aspect={aspect}
+                      onCancel={() => setCropSrc(null)}
+                      onDone={async (blob) => {
+                        setCropSrc(null);
+                        await doUpload(new File([blob], "cropped.jpg", { type: "image/jpeg" }));
+                      }} />
+      )}
     </div>
   );
 }
@@ -227,9 +352,9 @@ export default function Manage() {
             <AfField label="Full name" value={p.name} onChange={(v) => set("profile", { name: v })} />
             <AfField label="Title / role" value={p.title} onChange={(v) => set("profile", { title: v })} />
             <AfField label="Tagline" value={p.tagline} onChange={(v) => set("profile", { tagline: v })} full />
-            <AfUpload label="Profile image" value={p.profile_image_url} token={token}
+            <AfUpload label="Profile image (square crop)" value={p.profile_image_url} token={token} aspect={1}
                       onChange={(v) => set("profile", { profile_image_url: v })} />
-            <AfUpload label="Banner image (home background)" value={p.banner_image_url} token={token}
+            <AfUpload label="Banner image (wide crop)" value={p.banner_image_url} token={token} aspect={16 / 6}
                       onChange={(v) => set("profile", { banner_image_url: v })} />
             <AfUpload label="Resume (PDF)" value={p.resume_url} token={token} accept="application/pdf,.pdf"
                       onChange={(v) => set("profile", { resume_url: v })} />
@@ -264,7 +389,7 @@ export default function Manage() {
                         onChange={(v) => set("projects", { items: projects.map((x, j) => j === i ? { ...x, description: v } : x) })} />
                 <AfField label="Tech (comma separated)" value={(item.tech || []).join(", ")} full
                          onChange={(v) => set("projects", { items: projects.map((x, j) => j === i ? { ...x, tech: v.split(",").map((s) => s.trim()).filter(Boolean) } : x) })} />
-                <AfUpload label="Project image" value={item.image_url} token={token} full
+                <AfUpload label="Project image (16:10 crop)" value={item.image_url} token={token} aspect={16 / 10} full
                           onChange={(v) => set("projects", { items: projects.map((x, j) => j === i ? { ...x, image_url: v } : x) })} />
               </div>
               <button className="af-btn small ghosted" style={{ marginTop: 10 }}

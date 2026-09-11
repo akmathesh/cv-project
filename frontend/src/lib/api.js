@@ -42,6 +42,22 @@ export async function updateAdminCredentials(creds, token) {
   });
 }
 
+export async function sendAdminCode(token) {
+  return req("/api/admin/2fa/send", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({}),
+  });
+}
+
+export async function verifyAdminCode(code, token) {
+  return req("/api/admin/2fa/verify", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code }),
+  });
+}
+
 export async function uploadFile(file, token) {
   const res = await fetch(
     `${API}/api/upload?filename=${encodeURIComponent(file.name)}&content_type=${encodeURIComponent(file.type || "application/octet-stream")}`,

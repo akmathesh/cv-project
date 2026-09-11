@@ -8,8 +8,12 @@ Portfolio Backend — FastAPI on Vercel.
 - GET  /api/feedback           → list feedback (public, approved only; admin sees all)
 """
 
+import hashlib
 import os
-from datetime import datetime
+import secrets
+import smtplib
+from datetime import datetime, timedelta
+from email.message import EmailMessage
 
 import httpx
 from fastapi import FastAPI, HTTPException, Depends, Header
@@ -103,6 +107,52 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
+async def require_admin_verified(user: dict = Depends(require_admin)) -> dict:
+    """For content edits: the admin must have entered a fresh verification
+    code (valid for 2 hours after it was confirmed at /admanaccess)."""
+    until = (user.get("user_metadata") or {}).get("otp_until")
+    if not until or datetime.fromisoformat(until) < datetime.utcnow():
+        raise HTTPException(status_code=403,
+                            detail="Verification code required — sign in at /admanaccess "
+                                   "and enter your code to edit.")
+    return user
+
+
+async def admin_patch_user(uid: str, patch: dict):
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.put(f"{SUPABASE_URL}/auth/v1/admin/users/{uid}",
+                                headers={"apikey": SUPABASE_SERVICE_KEY,
+                                         "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"},
+                                json=patch)
+    if resp.status_code != 200:
+        raise HTTPException(status_code=resp.status_code, detail=resp.text)
+    return resp.json()
+
+
+def smtp_send(to: str, subject: str, body: str):
+    host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    port = int(os.environ.get("SMTP_PORT", "587"))
+    user = os.environ.get("SMTP_USER", "")
+    pw = os.environ.get("SMTP_PASSWORD", "")
+    if not user or not pw:
+        raise HTTPException(status_code=503,
+                            detail="Email delivery is not configured yet "
+                                   "(SMTP_USER / SMTP_PASSWORD missing on the server).")
+    msg = EmailMessage()
+    msg["From"] = os.environ.get("SMTP_FROM", user)
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.set_content(body)
+    with smtplib.SMTP(host, port, timeout=30) as s:
+        s.starttls()
+        s.login(user, pw)
+        s.send_message(msg)
+
+
+def _otp_hash(code: str) -> str:
+    return hashlib.sha256((SUPABASE_SERVICE_KEY[:16] + code.strip()).encode()).hexdigest()
+
+
 # ---------------------------------------------------------------- content
 @app.get("/api/health")
 async def health():
@@ -125,7 +175,7 @@ class Credentials(BaseModel):
 
 
 @app.put("/api/admin/credentials")
-async def update_credentials(body: Credentials, user: dict = Depends(require_admin)):
+async def update_credentials(body: Credentials, user: dict = Depends(require_admin_verified)):
     """Admin can change their own username / email / password at any time."""
     uid = user["id"]
     patch: dict = {}
@@ -152,6 +202,46 @@ async def update_credentials(body: Credentials, user: dict = Depends(require_adm
     return {"ok": True}
 
 
+class CodeBody(BaseModel):
+    code: str
+
+
+@app.post("/api/admin/2fa/send")
+async def send_2fa_code(user: dict = Depends(require_admin)):
+    """Generate a 4-digit code, store it hashed on the admin account
+    (5-minute expiry) and email it to the admin's address."""
+    code = f"{secrets.randbelow(10000):04d}"
+    r = await admin_patch_user(user["id"], {"user_metadata": {
+        "otp_hash": _otp_hash(code),
+        "otp_exp": (datetime.utcnow() + timedelta(minutes=5)).isoformat(),
+        "otp_tries": 0,
+    }})
+    meta = r.get("user_metadata") or {}
+    smtp_send(user.get("email"), "Your portfolio admin verification code",
+              f"Your verification code is: {code}\n\n"
+              f"It expires in 5 minutes.\nIf you did not request this, ignore this email.")
+    return {"ok": True, "sent_to": user.get("email"), "phone_on_file": meta.get("phone", "")}
+
+
+@app.post("/api/admin/2fa/verify")
+async def verify_2fa_code(body: CodeBody, user: dict = Depends(require_admin)):
+    meta = user.get("user_metadata") or {}
+    if not meta.get("otp_hash") or not meta.get("otp_exp"):
+        raise HTTPException(status_code=400, detail="No code was requested. Start again at /admanaccess.")
+    if datetime.fromisoformat(meta["otp_exp"]) < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Code expired — request a new one.")
+    if meta.get("otp_tries", 0) >= 5:
+        raise HTTPException(status_code=429, detail="Too many wrong attempts — request a new code.")
+    if _otp_hash(body.code) != meta.get("otp_hash"):
+        await admin_patch_user(user["id"], {"user_metadata": {"otp_tries": meta.get("otp_tries", 0) + 1}})
+        raise HTTPException(status_code=400, detail="Wrong code — check the email and try again.")
+    await admin_patch_user(user["id"], {"user_metadata": {
+        "otp_hash": None, "otp_exp": None, "otp_tries": 0,
+        "otp_until": (datetime.utcnow() + timedelta(hours=2)).isoformat(),
+    }})
+    return {"ok": True}
+
+
 @app.get("/api/content")
 async def get_content():
     rows = await sb("portfolio_content", params={"select": "section,data,updated_at"})
@@ -159,7 +249,7 @@ async def get_content():
 
 
 @app.put("/api/content/{section}")
-async def upsert_section(section: str, body: dict, _: dict = Depends(require_admin)):
+async def upsert_section(section: str, body: dict, _: dict = Depends(require_admin_verified)):
     await sb("portfolio_content", "POST",
              json_body={"section": section, "data": body},
              headers={"Prefer": "resolution=merge-duplicates,return=minimal"})
@@ -176,7 +266,7 @@ async def get_section(section: str):
 
 
 @app.delete("/api/content/{section}")
-async def delete_section(section: str, _: dict = Depends(require_admin)):
+async def delete_section(section: str, _: dict = Depends(require_admin_verified)):
     await sb("portfolio_content", "DELETE", params={"section": f"eq.{section}"})
     return {"ok": True, "section": section}
 
@@ -184,7 +274,7 @@ async def delete_section(section: str, _: dict = Depends(require_admin)):
 # ---------------------------------------------------------------- upload
 @app.post("/api/upload")
 async def upload(filename: str, content_type: str, data: bytes,
-                 _: dict = Depends(require_admin)):
+                 _: dict = Depends(require_admin_verified)):
     if not filename or "/" in filename or "\\" in filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
     path = f"{datetime.utcnow():%Y%m%d%H%M%S}_{filename}"
@@ -236,7 +326,7 @@ class ApproveBody(BaseModel):
 
 
 @app.post("/api/feedback/approve")
-async def approve_feedback(body: ApproveBody, _: dict = Depends(require_admin)):
+async def approve_feedback(body: ApproveBody, _: dict = Depends(require_admin_verified)):
     await sb("feedback", "PATCH",
              json_body={"approved": body.approved},
              params={"id": f"eq.{body.id}"},

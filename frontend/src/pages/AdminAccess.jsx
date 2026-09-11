@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { sendAdminCode, verifyAdminCode } from "../lib/api";
 
 /**
  * Secret admin entry point (/admanaccess).
- * Step 1: username + email + password (+ phone number saved to the account).
- * Step 2: a verification code is emailed to the admin; entering it unlocks
- *         the content manager. Everything here is admin-only server-side.
+ * Step 1: username + email + password (+ phone saved on the account).
+ * Step 2: a 4-digit verification code is emailed to the admin; entering
+ *         it unlocks /manage for 2 hours.
  */
 export default function AdminAccess() {
   const [step, setStep] = useState("credentials"); // credentials | code
@@ -41,20 +42,6 @@ export default function AdminAccess() {
     navigate("/manage");
   };
 
-  // If the admin clicked the emailed link instead of typing the code,
-  // the session may already be valid when this page loads.
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (data.session) {
-        try {
-          await checkAndEnter(true);
-        } catch {
-          /* stay on the login form */
-        }
-      }
-    });
-  }, []); // eslint-disable-line
-
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -64,16 +51,14 @@ export default function AdminAccess() {
       if (error) throw error;
 
       // Save the phone number on the account (editable here anytime)
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
       if (phone.trim()) {
         await supabase.auth.updateUser({ data: { phone: phone.trim() } });
       }
 
-      // Email the verification code (second step)
-      const { error: otpErr } = await supabase.auth.signInWithOtp({
-        email,
-        options: { shouldCreateUser: false },
-      });
-      if (otpErr) throw otpErr;
+      // Email the 4-digit verification code
+      await sendAdminCode(token);
       setStep("code");
     } catch (err) {
       setError(err.message);
@@ -86,12 +71,9 @@ export default function AdminAccess() {
     setError(null);
     setBusy(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        email,
-        token: code.trim().replace(/\s+/g, ""),
-        type: "email",
-      });
-      if (error) throw error;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      await verifyAdminCode(code.trim().replace(/\s+/g, ""), token);
       await checkAndEnter(true);
     } catch (err) {
       setError(err.message);
