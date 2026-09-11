@@ -30,7 +30,7 @@ export default function About() {
         </div>
       </div>
 
-      <Card3D className="gsap-reveal" >
+      <Card3D className="gsap-reveal">
         <h3 style={{ marginBottom: 8 }}>Quick facts</h3>
         <p className="muted">
           <strong>Role:</strong> {profile.title || "—"}<br />

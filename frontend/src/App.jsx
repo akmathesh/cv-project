@@ -18,19 +18,6 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Admin from "./pages/Admin";
 
-const PAGE_TITLES = {
-  "/": "Home",
-  "/about": "About",
-  "/projects": "Projects",
-  "/skills": "Skills",
-  "/certifications": "Certifications",
-  "/contact": "Contact",
-  "/feedback": "Feedback",
-  "/login": "Login",
-  "/signup": "Sign Up",
-  "/admin": "Admin",
-};
-
 export default function App() {
   const location = useLocation();
   const pageRef = useRef(null);
