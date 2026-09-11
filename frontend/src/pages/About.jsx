@@ -19,7 +19,7 @@ export default function About() {
         <div>
           {(about.paragraphs || ["Nothing here yet — the admin can add text from the Admin page."]).map((p, i) => (
             <p key={i} className="muted gsap-reveal" style={{ marginBottom: 14, lineHeight: 1.8 }}>
-              {p}
+              {p}Hey guys
             </p>
           ))}
           {profile.resume_url ? (
