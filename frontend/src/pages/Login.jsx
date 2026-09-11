@@ -13,7 +13,7 @@ export default function Login() {
     setError(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return setError(error.message);
-    navigate("/admin");
+    navigate("/");
   };
 
   const google = async () => {

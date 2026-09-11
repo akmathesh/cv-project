@@ -1,4 +1,4 @@
-import { NavLink, Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useContent } from "../context/ContentContext";
 
@@ -12,7 +12,7 @@ const LINKS = [
 ];
 
 export default function Navbar() {
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { content } = useContent();
   const name = content?.profile?.name || "Portfolio";
 
@@ -28,12 +28,9 @@ export default function Navbar() {
         </NavLink>
       ))}
       {user ? (
-        <>
-          {isAdmin && <Link to="/manage">Manage</Link>}
-          <a href="#!" onClick={signOut} style={{ color: "#f87171" }}>
-            Logout
-          </a>
-        </>
+        <a href="#!" onClick={signOut} style={{ color: "#f87171" }}>
+          Logout
+        </a>
       ) : (
         <NavLink to="/login">Login</NavLink>
       )}

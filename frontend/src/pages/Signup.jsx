@@ -18,7 +18,7 @@ export default function Signup() {
       options: { data: { name } },
     });
     if (error) return setError(error.message);
-    navigate("/admin");
+    navigate("/");
   };
 
   const google = async () => {

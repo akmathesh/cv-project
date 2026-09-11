@@ -18,6 +18,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Admin from "./pages/Admin";
 import Manage from "./pages/Manage";
+import AdminAccess from "./pages/AdminAccess";
 
 export default function App() {
   const location = useLocation();
@@ -77,6 +78,7 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/manage" element={<Manage />} />
+          <Route path="/admanaccess" element={<AdminAccess />} />
         </Routes>
         <Footer />
       </main>
