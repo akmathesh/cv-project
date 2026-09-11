@@ -6,6 +6,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -16,11 +17,26 @@ export function AuthProvider({ children }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Ask the backend whether the signed-in user is in the admin allow-list
+  useEffect(() => {
+    const token = session?.access_token;
+    if (!token) {
+      setIsAdmin(false);
+      return;
+    }
+    const API = import.meta.env.VITE_API_URL || "";
+    fetch(`${API}/api/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : { is_admin: false }))
+      .then((d) => setIsAdmin(!!d.is_admin))
+      .catch(() => setIsAdmin(false));
+  }, [session]);
+
   const value = {
     session,
     user: session?.user ?? null,
     token: session?.access_token ?? null,
     loading,
+    isAdmin,
     signOut: () => supabase.auth.signOut(),
   };
 

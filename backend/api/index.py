@@ -88,6 +88,13 @@ async def health():
     return {"status": "ok", "time": datetime.utcnow().isoformat()}
 
 
+@app.get("/api/me")
+async def me(user: dict = Depends(get_current_user)):
+    rows = await sb("admin_profiles",
+                    params={"select": "id", "user_id": f"eq.{user['id']}"})
+    return {"email": user.get("email"), "is_admin": bool(rows)}
+
+
 @app.get("/api/content")
 async def get_content():
     rows = await sb("portfolio_content", params={"select": "section,data,updated_at"})

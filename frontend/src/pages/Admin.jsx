@@ -87,7 +87,7 @@ function SectionCard({ title, onSave, children }) {
 /* ---------------- the admin page ---------------- */
 
 export default function Admin() {
-  const { user, token, loading } = useAuth();
+  const { user, token, loading, isAdmin } = useAuth();
   const { content, reload } = useContent();
   const [draft, setDraft] = useState(null);
   const [feedback, setFeedback] = useState([]);
@@ -100,13 +100,21 @@ export default function Admin() {
   }, [token]);
 
   if (loading) return <section className="section"><p className="muted">Loading…</p></section>;
-  if (!user)
+  if (!isAdmin)
     return (
       <section className="section">
         <div className="glass form-card">
-          <h2 className="section-title" style={{ fontSize: "1.4rem" }}>Admin area</h2>
-          <p className="muted" style={{ marginBottom: 16 }}>You need to log in to edit the site.</p>
-          <Link className="btn" to="/login">Go to Login</Link>
+          <h2 className="section-title" style={{ fontSize: "1.4rem" }}>Admins only</h2>
+          <p className="muted" style={{ marginBottom: 16 }}>
+            {user
+              ? `Your account (${user.email}) is not an administrator. Ask the site owner to promote it.`
+              : "You need to log in with an administrator account to edit the site."}
+          </p>
+          {user ? (
+            <button className="btn ghost" onClick={signOut}>Sign out</button>
+          ) : (
+            <Link className="btn" to="/login">Go to Login</Link>
+          )}
         </div>
       </section>
     );

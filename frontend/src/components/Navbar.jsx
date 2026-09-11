@@ -12,7 +12,7 @@ const LINKS = [
 ];
 
 export default function Navbar() {
-  const { user, signOut } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
   const { content } = useContent();
   const name = content?.profile?.name || "Portfolio";
 
@@ -29,7 +29,7 @@ export default function Navbar() {
       ))}
       {user ? (
         <>
-          <Link to="/manage">Manage</Link>
+          {isAdmin && <Link to="/manage">Manage</Link>}
           <a href="#!" onClick={signOut} style={{ color: "#f87171" }}>
             Logout
           </a>

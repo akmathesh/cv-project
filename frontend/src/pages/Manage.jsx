@@ -81,7 +81,7 @@ function FormSection({ num, title, onSave, onClear, children }) {
 /* ---------- the page ---------- */
 
 export default function Manage() {
-  const { user, token, loading } = useAuth();
+  const { user, token, loading, isAdmin } = useAuth();
   const { content, reload } = useContent();
   const [draft, setDraft] = useState(null);
   const [feedback, setFeedback] = useState([]);
@@ -99,9 +99,23 @@ export default function Manage() {
         <div className="af-sheet" style={{ textAlign: "center", padding: "60px 34px" }}>
           <h2 className="af-title">Restricted area</h2>
           <p className="muted" style={{ margin: "14px 0 22px" }}>
-            Sign in to open the content manager.
+            Sign in with the administrator account to open the content manager.
           </p>
           <Link className="af-btn" to="/login">Go to Login</Link>
+        </div>
+      </section>
+    );
+
+  if (!isAdmin)
+    return (
+      <section className="appform">
+        <div className="af-sheet" style={{ textAlign: "center", padding: "60px 34px" }}>
+          <h2 className="af-title">Admins only</h2>
+          <p className="muted" style={{ margin: "14px 0" }}>
+            This area is restricted to the site owner. Your account
+            {" "}(<strong style={{ color: "var(--text)" }}>{user.email}</strong>) is not an administrator.
+          </p>
+          <button className="af-btn ghosted" onClick={signOut}>Sign out</button>
         </div>
       </section>
     );
