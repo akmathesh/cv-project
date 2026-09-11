@@ -254,14 +254,50 @@ export default function Manage() {
           </button>
         </FormSection>
 
-        {/* 06 — social */}
-        <FormSection num="06" title="Reach Me — Social Links" onSave={() => save("social")} onClear={() => clear("social")}>
+        {/* 06 — social (all optional + dynamic custom links) */}
+        <FormSection num="06" title="Reach Me — Social Links (all optional)" onSave={() => save("social")} onClear={() => clear("social")}>
+          <p className="muted" style={{ fontSize: "0.8rem", marginBottom: 14 }}>
+            Every field is optional — anything left empty is hidden from the public site automatically.
+            Use “Add another link” for anything else (GitHub, X/Twitter, Discord, Blog…).
+          </p>
           <div className="af-grid">
-            <AfField label="LinkedIn URL" value={social.linkedin} onChange={(v) => set("social", { linkedin: v })} />
-            <AfField label="Instagram URL" value={social.instagram} onChange={(v) => set("social", { instagram: v })} />
-            <AfField label="WhatsApp (https://wa.me/…)" value={social.whatsapp} onChange={(v) => set("social", { whatsapp: v })} />
-            <AfField label="Mobile number" value={social.phone} onChange={(v) => set("social", { phone: v })} />
-            <AfField label="Email address" value={social.email} onChange={(v) => set("social", { email: v })} full />
+            <AfField label="LinkedIn URL" value={social.linkedin} onChange={(v) => set("social", { linkedin: v })}
+                     placeholder="https://linkedin.com/in/…" />
+            <AfField label="Instagram URL" value={social.instagram} onChange={(v) => set("social", { instagram: v })}
+                     placeholder="https://instagram.com/…" />
+            <AfField label="WhatsApp (number or https://wa.me/…)" value={social.whatsapp} onChange={(v) => set("social", { whatsapp: v })}
+                     placeholder="+91 98765 43210" />
+            <AfField label="Mobile number (optional)" value={social.phone} onChange={(v) => set("social", { phone: v })}
+                     placeholder="+91 98765 43210" />
+            <AfField label="Email address" value={social.email} onChange={(v) => set("social", { email: v })}
+                     placeholder="you@example.com" full />
+          </div>
+
+          <div className="af-grid" style={{ marginTop: 18 }}>
+            <div className="af-field full">
+              <label>Additional links — shown to visitors as labelled buttons</label>
+            </div>
+            {(social.custom || []).map((c, i) => (
+              <div className="af-item" key={i} style={{ width: "100%", display: "flex", gap: 14, alignItems: "flex-end", flexWrap: "wrap" }}>
+                <div className="af-field" style={{ flex: "1 1 160px" }}>
+                  <label>Label (e.g. GitHub)</label>
+                  <input value={c.label ?? ""}
+                         onChange={(e) => set("social", { custom: (social.custom || []).map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
+                </div>
+                <div className="af-field" style={{ flex: "2 1 240px" }}>
+                  <label>URL</label>
+                  <input value={c.url ?? ""} placeholder="https://…"
+                         onChange={(e) => set("social", { custom: (social.custom || []).map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })} />
+                </div>
+                <button className="af-btn small ghosted" style={{ marginBottom: 6 }}
+                        onClick={() => set("social", { custom: (social.custom || []).filter((_, j) => j !== i) })}>
+                  ✕
+                </button>
+              </div>
+            ))}
+            <button className="af-btn small" onClick={() => set("social", { custom: [...(social.custom || []), { label: "", url: "" }] })}>
+              + Add another link
+            </button>
           </div>
         </FormSection>
 

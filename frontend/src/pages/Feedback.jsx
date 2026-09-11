@@ -1,12 +1,25 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../context/AuthContext";
 import SkillMarquee from "../components/SkillMarquee";
 import { submitFeedback } from "../lib/api";
 
 export default function Feedback() {
+  const { user } = useAuth();
   const [quotes, setQuotes] = useState([]);
   const [form, setForm] = useState({ name: "", role: "", message: "", rating: 5 });
   const [status, setStatus] = useState(null);
+
+  // If the visitor is signed in (including via Google), prefill their name
+  useEffect(() => {
+    if (user && !form.name) {
+      const meta = user.user_metadata || {};
+      setForm((f) => ({
+        ...f,
+        name: meta.full_name || meta.name || user.email?.split("@")[0] || "",
+      }));
+    }
+  }, [user]); // eslint-disable-line
 
   useEffect(() => {
     // Approved feedback is publicly readable via RLS
@@ -51,6 +64,11 @@ export default function Feedback() {
 
       <form className="glass form-card" onSubmit={submit}>
         <h2 className="section-title" style={{ fontSize: "1.4rem" }}>Leave a review</h2>
+        {user && (
+          <p className="muted" style={{ marginBottom: 12, fontSize: "0.8rem" }}>
+            Signed in as <strong style={{ color: "var(--text)" }}>{user.email}</strong> — feedback still saves to the site owner's Supabase.
+          </p>
+        )}
         {status && <p className={status.ok ? "ok-msg" : "error-msg"}>{status.msg}</p>}
         <div className="field">
           <label>Name</label>

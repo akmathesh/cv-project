@@ -21,6 +21,15 @@ export default function Signup() {
     navigate("/admin");
   };
 
+  const google = async () => {
+    setError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) setError(error.message);
+  };
+
   return (
     <section className="section">
       <form className="glass form-card" onSubmit={submit}>
@@ -40,6 +49,10 @@ export default function Signup() {
                  onChange={(e) => setPassword(e.target.value)} />
         </div>
         <button className="btn" type="submit">Sign Up</button>
+        <div className="oauth-divider"><span>or</span></div>
+        <button className="btn oauth-btn" type="button" onClick={google}>
+          <strong style={{ color: "#4285F4" }}>G</strong> Continue with Google
+        </button>
         <p className="muted" style={{ marginTop: 16, fontSize: "0.85rem" }}>
           Already registered? <Link to="/login" style={{ color: "var(--accent-2)" }}>Login</Link>
         </p>

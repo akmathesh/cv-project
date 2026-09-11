@@ -172,6 +172,26 @@ button { font-family: inherit; }
   background: var(--grad);
   box-shadow: 0 6px 24px rgba(124, 58, 237, 0.5);
 }
+.social-fab.pulse { animation: fabPulse 2.2s ease-in-out infinite; }
+@keyframes fabPulse {
+  0%, 100% { box-shadow: 0 6px 24px rgba(124, 58, 237, 0.5), 0 0 0 0 rgba(124, 58, 237, 0.55); }
+  50%      { box-shadow: 0 6px 24px rgba(124, 58, 237, 0.5), 0 0 0 14px rgba(124, 58, 237, 0); }
+}
+
+/* ---- OAuth ---- */
+.oauth-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 18px 0; color: var(--muted); font-size: 0.8rem;
+}
+.oauth-divider::before, .oauth-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--card-border);
+}
+.oauth-btn {
+  width: 100%; justify-content: center;
+  background: #fff; color: #222;
+  font-weight: 700;
+}
+.oauth-btn:hover { box-shadow: 0 8px 30px rgba(255, 255, 255, 0.25); transform: translateY(-2px); }
 .social-item {
   width: 46px; height: 46px;
   border-radius: 50%;
