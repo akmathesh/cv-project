@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Component, useEffect, useRef, useState } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import gsap from "gsap";
 
@@ -19,6 +19,32 @@ import Signup from "./pages/Signup";
 import Admin from "./pages/Admin";
 import Manage from "./pages/Manage";
 import AdminAccess from "./pages/AdminAccess";
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <section className="section">
+          <div className="glass form-card">
+            <h2 className="section-title" style={{ fontSize: "1.3rem" }}>Page error</h2>
+            <pre style={{ whiteSpace: "pre-wrap", color: "#f87171", fontSize: "0.8rem", marginBottom: 16 }}>
+              {String(this.state.error?.message || this.state.error)}
+            </pre>
+            <button className="btn" onClick={() => window.location.reload()}>Reload page</button>
+          </div>
+        </section>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   const location = useLocation();
@@ -66,20 +92,22 @@ export default function App() {
       {displayLocation.pathname !== "/manage" && <ParticlesBackground />}
       <Navbar />
       <main ref={pageRef} className="page-fade" key={displayLocation.pathname}>
-        <Routes location={displayLocation}>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/skills" element={<Skills />} />
-          <Route path="/certifications" element={<Certifications />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/feedback" element={<Feedback />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/manage" element={<Manage />} />
-          <Route path="/admanaccess" element={<AdminAccess />} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes location={displayLocation}>
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/skills" element={<Skills />} />
+            <Route path="/certifications" element={<Certifications />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/feedback" element={<Feedback />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/manage" element={<Manage />} />
+            <Route path="/admanaccess" element={<AdminAccess />} />
+          </Routes>
+        </ErrorBoundary>
         <Footer />
       </main>
       <SocialDock />
