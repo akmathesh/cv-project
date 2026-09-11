@@ -70,8 +70,21 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
     return resp.json()
 
 
+async def get_user_factors(uid: str) -> list:
+    """Fetch the user's enrolled MFA factors via the Supabase admin API."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(f"{SUPABASE_URL}/auth/v1/admin/users/{uid}",
+                                headers={"apikey": SUPABASE_SERVICE_KEY,
+                                         "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"})
+    if resp.status_code != 200:
+        return []
+    return resp.json().get("factors", []) or []
+
+
 async def require_admin(user: dict = Depends(get_current_user)) -> dict:
-    """Only users whose id is in the admin_profiles table may edit."""
+    """Only users whose id is in the admin_profiles table may edit.
+    If the admin has verified TOTP factors, the session must be AAL2
+    (i.e. they completed the Google Authenticator challenge)."""
     uid = user.get("id")
     rows = await sb("admin_profiles",
                     params={"select": "id", "user_id": f"eq.{uid}"})
@@ -79,6 +92,14 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
         raise HTTPException(status_code=403,
                             detail="Not an admin. Ask the site owner to run the "
                                    "SQL in supabase_schema.sql to promote your account.")
+    verified_totp = [f for f in await get_user_factors(uid)
+                     if f.get("type") == "totp" and f.get("status") == "verified"]
+    if verified_totp:
+        amr = [m.get("method", "") for m in (user.get("amr") or [])]
+        if not any(m.startswith("mfa") for m in amr):
+            raise HTTPException(status_code=403,
+                                detail="MFA verification required: sign in at /admanaccess "
+                                       "with your Google Authenticator code.")
     return user
 
 
@@ -92,7 +113,43 @@ async def health():
 async def me(user: dict = Depends(get_current_user)):
     rows = await sb("admin_profiles",
                     params={"select": "id", "user_id": f"eq.{user['id']}"})
-    return {"email": user.get("email"), "is_admin": bool(rows)}
+    meta = user.get("user_metadata") or {}
+    return {"email": user.get("email"), "is_admin": bool(rows),
+            "username": meta.get("username") or meta.get("name") or ""}
+
+
+class Credentials(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+
+
+@app.put("/api/admin/credentials")
+async def update_credentials(body: Credentials, user: dict = Depends(require_admin)):
+    """Admin can change their own username / email / password at any time."""
+    uid = user["id"]
+    patch: dict = {}
+    if body.email:
+        patch["email"] = body.email
+        patch["email_confirm"] = True
+    if body.password:
+        if len(body.password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        patch["password"] = body.password
+    if body.username:
+        meta = dict(user.get("user_metadata") or {})
+        meta["username"] = body.username
+        patch["user_metadata"] = meta
+    if not patch:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.put(f"{SUPABASE_URL}/auth/v1/admin/users/{uid}",
+                                headers={"apikey": SUPABASE_SERVICE_KEY,
+                                         "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"},
+                                json=patch)
+    if resp.status_code not in (200,):
+        raise HTTPException(status_code=resp.status_code, detail=resp.text)
+    return {"ok": True}
 
 
 @app.get("/api/content")

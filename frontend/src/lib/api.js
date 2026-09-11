@@ -34,6 +34,14 @@ export async function deleteSection(section, token) {
   });
 }
 
+export async function updateAdminCredentials(creds, token) {
+  return req("/api/admin/credentials", {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(creds),
+  });
+}
+
 export async function uploadFile(file, token) {
   const res = await fetch(
     `${API}/api/upload?filename=${encodeURIComponent(file.name)}&content_type=${encodeURIComponent(file.type || "application/octet-stream")}`,

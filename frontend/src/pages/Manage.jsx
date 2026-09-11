@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useContent } from "../context/ContentContext";
-import { saveSection, deleteSection, uploadFile, getFeedback, approveFeedback } from "../lib/api";
+import { saveSection, deleteSection, uploadFile, getFeedback, approveFeedback, updateAdminCredentials } from "../lib/api";
+import { supabase } from "../lib/supabaseClient";
 
 /* ---------- building blocks (application-form style) ---------- */
 
@@ -78,7 +79,141 @@ function FormSection({ num, title, onSave, onClear, children }) {
   );
 }
 
-/* ---------- the page ---------- */
+/* ---------- security: credentials + Google Authenticator MFA ---------- */
+
+function SecuritySection() {
+  const { user, token } = useAuth();
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [msg, setMsg] = useState(null);
+  const [factors, setFactors] = useState([]);
+  const [enroll, setEnroll] = useState(null); // { factorId, qr, secret }
+  const [code, setCode] = useState("");
+
+  const loadFactors = async () => {
+    const { data } = await supabase.auth.mfa.listFactors();
+    setFactors(data?.totp || []);
+  };
+
+  useEffect(() => {
+    if (user) {
+      const meta = user.user_metadata || {};
+      setUsername(meta.username || "");
+      setEmail(user.email || "");
+      loadFactors();
+    }
+  }, [user]);
+
+  const saveCreds = async () => {
+    setMsg(null);
+    if (password && password.length < 6) return setMsg({ ok: false, t: "Password must be at least 6 characters." });
+    try {
+      await updateAdminCredentials(
+        { username: username || undefined, email: email || undefined, password: password || undefined },
+        token
+      );
+      setMsg({ ok: true, t: "Credentials updated ✓ — use them next time at /admanaccess." });
+      setPassword("");
+    } catch (e) {
+      setMsg({ ok: false, t: e.message });
+    }
+  };
+
+  const startEnroll = async () => {
+    const { data, error } = await supabase.auth.mfa.enroll({
+      factorType: "totp",
+      friendlyName: "Google Authenticator",
+    });
+    if (error) return alert(error.message);
+    setEnroll({ factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret });
+  };
+
+  const confirmEnroll = async () => {
+    try {
+      const { data: challenge, error: chErr } = await supabase.auth.mfa.challenge({ factorId: enroll.factorId });
+      if (chErr) throw chErr;
+      const { error: verErr } = await supabase.auth.mfa.verify({
+        challengeId: challenge.id, code: code.trim().replace(/\s+/g, ""),
+      });
+      if (verErr) throw verErr;
+      setEnroll(null);
+      setCode("");
+      await loadFactors();
+      setMsg({ ok: true, t: "Google Authenticator is now ON — every /admanaccess login will ask for a code." });
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  const unenroll = async (factorId) => {
+    if (!window.confirm("Turn OFF Google Authenticator? Logins will only need the password.")) return;
+    const { error } = await supabase.auth.mfa.unenroll({ factorId });
+    if (error) return alert(error.message);
+    await loadFactors();
+  };
+
+  const verified = factors.filter((f) => f.status === "verified");
+
+  return (
+    <div className="fs">
+      <div className="fs-head">
+        <span className="fs-num">09</span>
+        <span className="fs-title">Security — Admin Credentials &amp; MFA</span>
+      </div>
+
+      <div className="af-grid">
+        <AfField label="Username" value={username} onChange={setUsername} />
+        <AfField label="Email (login id)" value={email} onChange={setEmail} type="email" />
+        <AfField label="New password (leave blank to keep current)" value={password} onChange={setPassword} type="password" full />
+      </div>
+      <button className="af-btn small" style={{ marginTop: 10 }} onClick={saveCreds}>Save credentials</button>
+      {msg && <p className={msg.ok ? "ok-msg" : "error-msg"} style={{ marginTop: 8 }}>{msg.t}</p>}
+
+      <div className="af-item" style={{ marginTop: 18 }}>
+        <strong>Google Authenticator (2-step verification)</strong>
+        <p className="muted" style={{ fontSize: "0.85rem", margin: "6px 0 12px" }}>
+          Optional but recommended: once ON, every /admanaccess login also needs a 6-digit code
+          from the Google Authenticator app on your mobile. The server enforces it, not just the page.
+        </p>
+
+        {verified.length > 0 ? (
+          <>
+            <p className="ok-msg" style={{ marginBottom: 10 }}>✓ ON — verified devices: {verified.length}</p>
+            {verified.map((f) => (
+              <button key={f.id} className="af-btn small ghosted" style={{ marginRight: 8 }}
+                      onClick={() => unenroll(f.id)}>
+                Turn OFF ({f.friendly_name || "authenticator"})
+              </button>
+            ))}
+          </>
+        ) : enroll ? (
+          <>
+            <p style={{ marginBottom: 10 }}>Scan this QR with the <strong>Google Authenticator</strong> app (mobile):</p>
+            <div style={{ background: "#fff", display: "inline-block", padding: 10, borderRadius: 10 }}
+                 dangerouslySetInnerHTML={{ __html: enroll.qr }} />
+            <p className="muted" style={{ fontSize: "0.75rem", margin: "10px 0" }}>
+              Can&apos;t scan? Enter this key manually in the app:
+              <code style={{ color: "var(--text)", marginLeft: 6 }}>{enroll.secret}</code>
+            </p>
+            <div className="af-field" style={{ maxWidth: 220 }}>
+              <label>Enter the 6-digit code from the app</label>
+              <input inputMode="numeric" maxLength={7} value={code} autoFocus
+                     style={{ letterSpacing: "0.3em", textAlign: "center" }}
+                     onChange={(e) => setCode(e.target.value)} />
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="af-btn small" onClick={confirmEnroll}>Confirm &amp; turn ON</button>
+              <button className="af-btn small ghosted" onClick={() => setEnroll(null)}>Cancel</button>
+            </div>
+          </>
+        ) : (
+          <button className="af-btn small" onClick={startEnroll}>Set up Google Authenticator</button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Manage() {
   const { user, token, loading, isAdmin } = useAuth();
@@ -331,6 +466,9 @@ export default function Manage() {
             </div>
           ))}
         </div>
+
+        {/* 09 — security */}
+        <SecuritySection />
 
         <div className="af-sign">
           <span>Applicant signature: <em style={{ color: "var(--text)" }}>{user.email}</em></span>
