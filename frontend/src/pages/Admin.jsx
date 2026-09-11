@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useContent } from "../context/ContentContext";
-import { saveSection, uploadFile, getFeedback, approveFeedback } from "../lib/api";
+import { saveSection, uploadFile } from "../lib/api";
 
 /* ---------------- small helpers ---------------- */
 
@@ -90,14 +90,9 @@ export default function Admin() {
   const { user, token, loading, isAdmin } = useAuth();
   const { content, reload } = useContent();
   const [draft, setDraft] = useState(null);
-  const [feedback, setFeedback] = useState([]);
   const [error, setError] = useState(null);
 
   useEffect(() => setDraft(JSON.parse(JSON.stringify(content))), [content]);
-
-  useEffect(() => {
-    if (token) getFeedback(token).then(setFeedback).catch(() => {});
-  }, [token]);
 
   if (loading) return <section className="section"><p className="muted">Loading…</p></section>;
   if (!isAdmin)
@@ -233,23 +228,7 @@ export default function Admin() {
           <Field label="Button Link (e.g. /contact)" value={cta.button_link} onChange={(v) => set("cta", { button_link: v })} />
         </SectionCard>
 
-        {/* Feedback moderation */}
-        <div className="glass admin-card">
-          <h3 className="section-title" style={{ fontSize: "1.2rem" }}>Feedback Moderation</h3>
-          {!feedback.length && <p className="muted">No feedback yet.</p>}
-          {feedback.map((f) => (
-            <div key={f.id} className="admin-row glass" style={{ padding: 12, marginBottom: 10 }}>
-              <strong>{f.name}</strong> {f.role ? <span className="muted">({f.role})</span> : null} — {"⭐".repeat(f.rating || 5)}
-              <p className="muted">{f.message}</p>
-              <button className="btn ghost" style={{ padding: "5px 12px", fontSize: "0.75rem", marginTop: 6 }}
-                      onClick={() => approveFeedback(f.id, !f.approved, token)
-                        .then(() => setFeedback(feedback.map((x) => (x.id === f.id ? { ...x, approved: !x.approved } : x))))
-                        .catch((e) => alert(e.message))}>
-                {f.approved ? "Unapprove" : "Approve"}
-              </button>
-            </div>
-          ))}
-        </div>
+        {/* Feedback moderation removed — public feedback is managed in Supabase */}
       </div>
     </section>
   );

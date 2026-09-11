@@ -73,6 +73,22 @@ export default function Home() {
           </Link>
         </div>
       </section>
+
+      {/* admin-defined extra sections */}
+      {(content?.extras?.items || [])
+        .filter((e) => e.heading || e.text || e.image_url)
+        .map((e, i) => (
+          <section className="section" key={i} style={{ minHeight: "auto", paddingTop: 48 }}>
+            {e.heading ? <h2 className="section-title">{e.heading}</h2> : null}
+            {e.image_url ? (
+              <img src={e.image_url} alt={e.heading || "section image"}
+                   style={{ width: "100%", maxWidth: 640, borderRadius: 16, marginBottom: 20, display: "block", boxShadow: "0 15px 50px rgba(0,0,0,0.4)" }} />
+            ) : null}
+            {(e.text || "").split("\n").filter((t) => t.trim()).map((p, j) => (
+              <p key={j} className="muted gsap-reveal" style={{ marginBottom: 14, lineHeight: 1.8 }}>{p}</p>
+            ))}
+          </section>
+        ))}
     </>
   );
 }

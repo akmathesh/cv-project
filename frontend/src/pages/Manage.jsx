@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useContent } from "../context/ContentContext";
-import { saveSection, deleteSection, uploadFile, getFeedback, approveFeedback, updateAdminCredentials } from "../lib/api";
+import { saveSection, deleteSection, uploadFile, updateAdminCredentials } from "../lib/api";
 import { supabase } from "../lib/supabaseClient";
 import PasswordInput from "../components/PasswordInput";
 
@@ -268,12 +268,8 @@ export default function Manage() {
   const { user, token, loading, isAdmin } = useAuth();
   const { content, reload } = useContent();
   const [draft, setDraft] = useState(null);
-  const [feedback, setFeedback] = useState([]);
 
   useEffect(() => setDraft(JSON.parse(JSON.stringify(content))), [content]);
-  useEffect(() => {
-    if (token) getFeedback(token).then(setFeedback).catch(() => {});
-  }, [token]);
 
   if (loading) return <section className="appform"><p className="muted">Loading…</p></section>;
 
@@ -336,6 +332,7 @@ export default function Manage() {
   const certs = draft.certifications?.items || [];
   const social = draft.social || {};
   const cta = draft.cta || {};
+  const extras = draft.extras?.items || [];
 
   return (
     <section className="appform">
@@ -495,26 +492,34 @@ export default function Manage() {
           </div>
         </FormSection>
 
-        {/* 08 — feedback */}
-        <div className="fs">
-          <div className="fs-head">
-            <span className="fs-num">08</span>
-            <span className="fs-title">Feedback Moderation</span>
-          </div>
-          {!feedback.length && <p className="muted" style={{ marginBottom: 10 }}>No feedback submitted yet.</p>}
-          {feedback.map((f) => (
-            <div className="af-item" key={f.id}>
-              <strong>{f.name}</strong> {f.role ? <span className="muted">({f.role})</span> : null} — {"⭐".repeat(f.rating || 5)}
-              <p className="muted" style={{ margin: "6px 0 10px" }}>{f.message}</p>
-              <button className="af-btn small"
-                      onClick={() => approveFeedback(f.id, !f.approved, token)
-                        .then(() => setFeedback(feedback.map((x) => (x.id === f.id ? { ...x, approved: !x.approved } : x))))
-                        .catch((e) => alert(e.message))}>
-                {f.approved ? "Unapprove" : "Approve"}
+        {/* 08 — extra sections (admin-defined, shown on the home page) */}
+        <FormSection num="08" title="Extra Sections — Add Your Own Content" onSave={() => save("extras")} onClear={() => clear("extras")}>
+          <p className="muted" style={{ fontSize: "0.8rem", marginBottom: 14 }}>
+            Add any additional content blocks (Experience, Achievements, Hobbies…).
+            Each one appears on the visitor&apos;s home page below the call-to-action,
+            in the same style as the rest of the site.
+          </p>
+          {extras.map((item, i) => (
+            <div className="af-item" key={i}>
+              <div className="af-grid">
+                <AfField label="Heading" value={item.heading} full
+                         onChange={(v) => set("extras", { items: extras.map((x, j) => j === i ? { ...x, heading: v } : x) })} />
+                <AfArea label="Text (each line = one paragraph)" value={item.text}
+                        onChange={(v) => set("extras", { items: extras.map((x, j) => j === i ? { ...x, text: v } : x) })} />
+                <AfUpload label="Image (optional, 16:10 crop)" value={item.image_url} token={token} aspect={16 / 10} full
+                          onChange={(v) => set("extras", { items: extras.map((x, j) => j === i ? { ...x, image_url: v } : x) })} />
+              </div>
+              <button className="af-btn small ghosted" style={{ marginTop: 10 }}
+                      onClick={() => set("extras", { items: extras.filter((_, j) => j !== i) })}>
+                ✕ Remove section
               </button>
             </div>
           ))}
-        </div>
+          <button className="af-btn small"
+                  onClick={() => set("extras", { items: [...extras, { heading: "", text: "", image_url: "" }] })}>
+            + Add extra section
+          </button>
+        </FormSection>
 
         {/* 09 — security */}
         <SecuritySection />
