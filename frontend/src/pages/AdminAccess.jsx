@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { sendAdminCode, verifyAdminCode } from "../lib/api";
+import PasswordInput from "../components/PasswordInput";
 
 /**
  * Secret admin entry point (/admanaccess).
@@ -104,7 +105,7 @@ export default function AdminAccess() {
             </div>
             <div className="field">
               <label>Password</label>
-              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+              <PasswordInput required value={password} onChange={setPassword} />
             </div>
             <div className="field">
               <label>Phone number (saved to your admin account)</label>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import PasswordInput from "../components/PasswordInput";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
@@ -12,6 +13,9 @@ export default function Signup() {
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
+    if (password.length < 6 || password.length > 16) {
+      return setError("Password must be 6 to 16 characters.");
+    }
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -44,9 +48,9 @@ export default function Signup() {
           <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div className="field">
-          <label>Password (min 6 characters)</label>
-          <input type="password" required minLength={6} value={password}
-                 onChange={(e) => setPassword(e.target.value)} />
+          <label>Password (6–16 characters)</label>
+          <PasswordInput required minLength={6} maxLength={16} value={password}
+                         onChange={setPassword} />
         </div>
         <button className="btn" type="submit">Sign Up</button>
         <div className="oauth-divider"><span>or</span></div>

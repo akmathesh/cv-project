@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import PasswordInput from "../components/PasswordInput";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -36,7 +37,7 @@ export default function Login() {
         </div>
         <div className="field">
           <label>Password</label>
-          <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput required value={password} onChange={setPassword} />
         </div>
         <button className="btn" type="submit">Login</button>
         <div className="oauth-divider"><span>or</span></div>

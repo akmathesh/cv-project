@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useContent } from "../context/ContentContext";
 import { saveSection, deleteSection, uploadFile, getFeedback, approveFeedback, updateAdminCredentials } from "../lib/api";
 import { supabase } from "../lib/supabaseClient";
+import PasswordInput from "../components/PasswordInput";
 
 /* ---------- image cropper (drag + zoom, exports JPEG) ---------- */
 
@@ -225,7 +226,9 @@ function SecuritySection() {
 
   const saveCreds = async () => {
     setMsg(null);
-    if (password && password.length < 6) return setMsg({ ok: false, t: "Password must be at least 6 characters." });
+    if (password && (password.length < 6 || password.length > 16)) {
+      return setMsg({ ok: false, t: "Password must be 6 to 16 characters." });
+    }
     try {
       await updateAdminCredentials(
         { username: username || undefined, email: email || undefined, password: password || undefined },
@@ -250,7 +253,10 @@ function SecuritySection() {
         <AfField label="Username" value={username} onChange={setUsername} />
         <AfField label="Email (login id)" value={email} onChange={setEmail} type="email" />
         <AfField label="Phone number" value={phone} onChange={setPhone} type="tel" />
-        <AfField label="New password (leave blank to keep current)" value={password} onChange={setPassword} type="password" full />
+        <div className="af-field full">
+          <label>New password (6–16 chars, leave blank to keep current)</label>
+          <PasswordInput value={password} onChange={setPassword} maxLength={16} minLength={6} />
+        </div>
       </div>
       <button className="af-btn small" style={{ marginTop: 10 }} onClick={saveCreds}>Save credentials</button>
       {msg && <p className={msg.ok ? "ok-msg" : "error-msg"} style={{ marginTop: 8 }}>{msg.t}</p>}

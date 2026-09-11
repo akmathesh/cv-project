@@ -9,8 +9,18 @@ export function AuthProvider({ children }) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    supabase.auth.getSession().then(async ({ data }) => {
+      let s = data.session;
+      if (s) {
+        // Verify the token with Supabase — clears stale/expired sessions
+        // that would otherwise show a ghost "Logout" state.
+        const { error } = await supabase.auth.getUser();
+        if (error) {
+          await supabase.auth.signOut();
+          s = null;
+        }
+      }
+      setSession(s);
       setLoading(false);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
