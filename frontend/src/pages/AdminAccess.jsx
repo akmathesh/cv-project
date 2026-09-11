@@ -17,6 +17,7 @@ export default function AdminAccess() {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  const [demoCode, setDemoCode] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
@@ -58,8 +59,10 @@ export default function AdminAccess() {
         await supabase.auth.updateUser({ data: { phone: phone.trim() } });
       }
 
-      // Email the 4-digit verification code
-      await sendAdminCode(token);
+      // Email the 4-digit verification code (demo mode shows it on screen
+      // if the server's email delivery isn't configured yet)
+      const sent = await sendAdminCode(token);
+      setDemoCode(sent.demo ? sent.code : null);
       setStep("code");
     } catch (err) {
       setError(err.message);
@@ -115,10 +118,17 @@ export default function AdminAccess() {
           </>
         ) : (
           <>
-            <p className="muted" style={{ marginBottom: 16, fontSize: "0.85rem" }}>
-              We sent a verification code to <strong style={{ color: "var(--text)" }}>{email}</strong>.
-              Enter it below (or click the link inside the email) to open the content manager.
-            </p>
+            {demoCode ? (
+              <p className="ok-msg" style={{ marginBottom: 14 }}>
+                Email isn&apos;t configured on the server yet, so here is your code
+                directly (demo mode): <strong style={{ fontSize: "1.2rem", letterSpacing: "0.2em" }}>{demoCode}</strong>
+              </p>
+            ) : (
+              <p className="muted" style={{ marginBottom: 16, fontSize: "0.85rem" }}>
+                We sent a verification code to <strong style={{ color: "var(--text)" }}>{email}</strong>.
+                Enter it below to open the content manager.
+              </p>
+            )}
             <div className="field">
               <label>Verification code</label>
               <input inputMode="numeric" maxLength={7} required value={code} autoFocus

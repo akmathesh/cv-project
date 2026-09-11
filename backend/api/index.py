@@ -217,10 +217,18 @@ async def send_2fa_code(user: dict = Depends(require_admin)):
         "otp_tries": 0,
     }})
     meta = r.get("user_metadata") or {}
-    smtp_send(user.get("email"), "Your portfolio admin verification code",
-              f"Your verification code is: {code}\n\n"
-              f"It expires in 5 minutes.\nIf you did not request this, ignore this email.")
-    return {"ok": True, "sent_to": user.get("email"), "phone_on_file": meta.get("phone", "")}
+    try:
+        smtp_send(user.get("email"), "Your portfolio admin verification code",
+                  f"Your verification code is: {code}\n\n"
+                  f"It expires in 5 minutes.\nIf you did not request this, ignore this email.")
+        return {"ok": True, "sent_to": user.get("email"), "phone_on_file": meta.get("phone", "")}
+    except HTTPException as e:
+        if e.status_code == 503:
+            # Email not configured: demo mode — hand the code to the admin
+            # directly (they already passed the username+password gate).
+            return {"ok": True, "demo": True, "code": code,
+                    "detail": "SMTP not configured on the server yet."}
+        raise
 
 
 @app.post("/api/admin/2fa/verify")
