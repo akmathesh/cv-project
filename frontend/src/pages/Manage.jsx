@@ -6,11 +6,19 @@ import { saveSection, deleteSection, uploadFile, updateAdminCredentials } from "
 import { supabase } from "../lib/supabaseClient";
 import PasswordInput from "../components/PasswordInput";
 
-/* ---------- image cropper (drag + zoom, exports JPEG) ---------- */
+/* ---------- image cropper (ratio presets + free ratio, drag + zoom) ---------- */
 
-function CropperModal({ src, aspect, onDone, onCancel }) {
+const RATIO_PRESETS = [
+  { label: "1:1", v: 1 },
+  { label: "4:3", v: 4 / 3 },
+  { label: "16:10", v: 16 / 10 },
+  { label: "Free", v: null },
+];
+
+function CropperModal({ src, defaultAspect = 1, onDone, onCancel }) {
   const W = 520;
-  const H = Math.round(520 / aspect);
+  const [ratio, setRatio] = useState(defaultAspect); // null = free
+  const [aspect, setAspect] = useState(defaultAspect);
   const [zoom, setZoom] = useState(1);
   const [pos, setPos] = useState({ x: 0, y: 0 }); // top-left of image in viewport
   const [dims, setDims] = useState({ w: 0, h: 0 });
@@ -18,28 +26,47 @@ function CropperModal({ src, aspect, onDone, onCancel }) {
   const dragRef = useRef(null);
   const imgElRef = useRef(null);
 
-  // fit image so it covers the viewport at zoom = 1
+  const H = Math.round(W / aspect);
+
+  const fitTo = (asp, nat) => {
+    const h = Math.round(W / asp);
+    const base = Math.max(W / nat.w, h / nat.h);
+    const w = nat.w * base;
+    const hh = nat.h * base;
+    setDims({ w, h: hh });
+    setPos({ x: (W - w) / 2, y: (h - hh) / 2 });
+  };
+
   useEffect(() => {
     const img = new Image();
     img.onload = () => {
-      const base = Math.max(W / img.width, H / img.height);
-      const w = img.width * base;
-      const h = img.height * base;
-      setNatural({ w: img.width, h: img.height });
-      setDims({ w, h });
-      setPos({ x: (W - w) / 2, y: (H - h) / 2 });
+      const nat = { w: img.width, h: img.height };
+      setNatural(nat);
+      fitTo(ratio ?? nat.w / nat.h, nat); // Free follows the image shape
+      setZoom(1);
     };
     img.src = src;
-  }, [src]);
+  }, [src]); // eslint-disable-line
 
-  const clamp = (p, z) => {
-    const base = Math.max(W / natural.w, H / natural.h);
+  const clamp = (p, z, asp) => {
+    const h = Math.round(W / asp);
+    const base = Math.max(W / natural.w, h / natural.h);
     const w = natural.w * base * z;
-    const h = natural.h * base * z;
+    const hh = natural.h * base * z;
     return {
       x: Math.min(0, Math.max(W - w, p.x)),
-      y: Math.min(0, Math.max(H - h, p.y)),
+      y: Math.min(0, Math.max(h - hh, p.y)),
     };
+  };
+
+  const changeRatio = (r) => {
+    setRatio(r);
+    const asp = r ?? (natural.w ? natural.w / natural.h : defaultAspect);
+    setAspect(asp);
+    if (natural.w) {
+      fitTo(asp, natural);
+      setZoom(1);
+    }
   };
 
   const onZoom = (z) => {
@@ -49,7 +76,7 @@ function CropperModal({ src, aspect, onDone, onCancel }) {
     const base = Math.max(W / natural.w, H / natural.h);
     const nw = natural.w * base * z;
     const nh = natural.h * base * z;
-    const p = clamp({ x: cx - nw / 2, y: cy - nh / 2 }, z);
+    const p = clamp({ x: cx - nw / 2, y: cy - nh / 2 }, z, aspect);
     setZoom(z);
     setPos(p);
   };
@@ -61,7 +88,7 @@ function CropperModal({ src, aspect, onDone, onCancel }) {
   const onPointerMove = (e) => {
     if (!dragRef.current) return;
     const d = dragRef.current;
-    setPos(clamp({ x: d.px + (e.clientX - d.sx), y: d.py + (e.clientY - d.sy) }, zoom));
+    setPos(clamp({ x: d.px + (e.clientX - d.sx), y: d.py + (e.clientY - d.sy) }, zoom, aspect));
   };
   const onPointerUp = () => { dragRef.current = null; };
 
@@ -87,9 +114,19 @@ function CropperModal({ src, aspect, onDone, onCancel }) {
          onClick={onCancel}>
       <div className="af-sheet" style={{ maxWidth: W + 48, width: "100%" }} onClick={(e) => e.stopPropagation()}>
         <div className="af-header">
-          <div className="af-title" style={{ fontSize: "1.1rem" }}>Crop image — drag to position, slide to zoom</div>
+          <div className="af-title" style={{ fontSize: "1.1rem" }}>Crop image — drag to position</div>
         </div>
-        <div style={{ marginTop: 16, position: "relative", width: "100%", aspectRatio: `${W}/${H}`, overflow: "hidden", borderRadius: 12, border: "1px solid var(--card-border)", background: "#000", touchAction: "none" }}
+        <div style={{ display: "flex", gap: 8, margin: "14px 0" }}>
+          {RATIO_PRESETS.map((r) => (
+            <button key={r.label}
+                    className={`af-btn small ${String(ratio) === String(r.v) ? "" : "ghosted"}`}
+                    style={String(ratio) === String(r.v) ? {} : undefined}
+                    onClick={() => changeRatio(r.v)}>
+              {r.v === null ? "Free ratio" : r.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ position: "relative", width: "100%", aspectRatio: `${W}/${H}`, overflow: "hidden", borderRadius: 12, border: "1px solid var(--card-border)", background: "#000", touchAction: "none" }}
              onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
           {natural.w > 0 && (
             <img src={src} alt="" draggable={false}
@@ -141,6 +178,7 @@ function AfUpload({ label, value, onChange, token, accept = "image/*", aspect })
     try {
       const { url } = await uploadFile(file, token);
       onChange(url);
+      window.dispatchEvent(new CustomEvent("pf-toast", { detail: `${label.split("(")[0].trim()} uploaded ✓` }));
     } catch (err) {
       alert(`Upload failed: ${err.message}`);
     }
@@ -172,7 +210,7 @@ function AfUpload({ label, value, onChange, token, accept = "image/*", aspect })
       </div>
       {value ? <img src={value} alt="" className="af-thumb" /> : null}
       {cropSrc && (
-        <CropperModal src={cropSrc} aspect={aspect}
+        <CropperModal src={cropSrc} defaultAspect={aspect ?? 1}
                       onCancel={() => setCropSrc(null)}
                       onDone={async (blob) => {
                         setCropSrc(null);
@@ -271,6 +309,18 @@ export default function Manage() {
   const { user, token, loading, isAdmin } = useAuth();
   const { content, reload } = useContent();
   const [draft, setDraft] = useState(null);
+  const [toasts, setToasts] = useState([]);
+
+  // upload-confirmation popups (dispatched by AfUpload)
+  useEffect(() => {
+    const handler = (e) => {
+      const t = { id: Date.now() + Math.random(), msg: e.detail };
+      setToasts((ts) => [...ts, t]);
+      setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== t.id)), 3500);
+    };
+    window.addEventListener("pf-toast", handler);
+    return () => window.removeEventListener("pf-toast", handler);
+  }, []);
 
   useEffect(() => setDraft(JSON.parse(JSON.stringify(content))), [content]);
 
@@ -532,6 +582,10 @@ export default function Manage() {
           <span>Date: {new Date().toLocaleDateString()}</span>
         </div>
       </div>
+
+      {toasts.map((t) => (
+        <div key={t.id} className="pf-toast">✓ {t.msg}</div>
+      ))}
     </section>
   );
 }

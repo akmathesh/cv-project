@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from email.message import EmailMessage
 
 import httpx
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -155,6 +155,24 @@ def _otp_hash(code: str) -> str:
 
 
 # ---------------------------------------------------------------- content
+# Admin-edited content lives in its own table ("admin_content") once the
+# admin runs backend/admin_content_table.sql in Supabase. Until then the
+# code falls back to "portfolio_content" automatically.
+CONTENT_TABLE: Optional[str] = None
+
+
+async def resolve_content_table() -> str:
+    global CONTENT_TABLE
+    if CONTENT_TABLE:
+        return CONTENT_TABLE
+    try:
+        await sb("admin_content", params={"select": "section", "limit": 1})
+        CONTENT_TABLE = "admin_content"
+    except HTTPException:
+        CONTENT_TABLE = "portfolio_content"
+    return CONTENT_TABLE
+
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "time": datetime.utcnow().isoformat()}
@@ -258,13 +276,15 @@ async def verify_2fa_code(body: CodeBody, user: dict = Depends(require_admin)):
 
 @app.get("/api/content")
 async def get_content():
-    rows = await sb("portfolio_content", params={"select": "section,data,updated_at"})
+    table = await resolve_content_table()
+    rows = await sb(table, params={"select": "section,data,updated_at"})
     return {r["section"]: r["data"] for r in rows}
 
 
 @app.put("/api/content/{section}")
 async def upsert_section(section: str, body: dict, _: dict = Depends(require_admin_verified)):
-    await sb("portfolio_content", "POST",
+    table = await resolve_content_table()
+    await sb(table, "POST",
              json_body={"section": section, "data": body},
              headers={"Prefer": "resolution=merge-duplicates,return=minimal"})
     return {"ok": True, "section": section}
@@ -272,7 +292,8 @@ async def upsert_section(section: str, body: dict, _: dict = Depends(require_adm
 
 @app.get("/api/content/{section}")
 async def get_section(section: str):
-    rows = await sb("portfolio_content",
+    table = await resolve_content_table()
+    rows = await sb(table,
                     params={"select": "section,data", "section": f"eq.{section}"})
     if not rows:
         raise HTTPException(status_code=404, detail="Section not found")
@@ -281,14 +302,19 @@ async def get_section(section: str):
 
 @app.delete("/api/content/{section}")
 async def delete_section(section: str, _: dict = Depends(require_admin_verified)):
-    await sb("portfolio_content", "DELETE", params={"section": f"eq.{section}"})
+    table = await resolve_content_table()
+    await sb(table, "DELETE", params={"section": f"eq.{section}"})
     return {"ok": True, "section": section}
 
 
 # ---------------------------------------------------------------- upload
 @app.post("/api/upload")
-async def upload(filename: str, content_type: str, data: bytes,
+async def upload(request: Request, filename: str,
+                 content_type: str = "application/octet-stream",
                  _: dict = Depends(require_admin_verified)):
+    data = await request.body()
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty file")
     if not filename or "/" in filename or "\\" in filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
     path = f"{datetime.utcnow():%Y%m%d%H%M%S}_{filename}"
