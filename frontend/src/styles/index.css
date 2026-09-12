@@ -73,6 +73,42 @@ body {
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; }
 
+/* ---- custom cursor (mouse devices only) ---- */
+.cursor-dot {
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 1000;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--grad);
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.8);
+  pointer-events: none;
+}
+.cursor-ring {
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 999;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(124, 58, 237, 0.55);
+  pointer-events: none;
+  transition: width 0.2s ease, height 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.cursor-ring.hover {
+  width: 56px; height: 56px;
+  border-color: rgba(6, 182, 212, 0.85);
+  background: rgba(6, 182, 212, 0.08);
+}
+@media (pointer: fine) {
+  body.cursorfx, body.cursorfx a, body.cursorfx button,
+  body.cursorfx label, body.cursorfx [role="button"] { cursor: none; }
+  body.cursorfx input, body.cursorfx textarea,
+  body.cursorfx select, body.cursorfx [contenteditable] { cursor: text; }
+}
+@media (pointer: coarse) {
+  .cursor-dot, .cursor-ring { display: none; }
+}
+
 /* ---- animated gradient backdrop (behind particles) ---- */
 .gradient-backdrop {
   position: fixed;

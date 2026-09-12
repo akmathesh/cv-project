@@ -6,6 +6,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import SocialDock from "./components/SocialDock";
 import ParticlesBackground from "./components/ParticlesBackground";
+import CursorFX from "./components/CursorFX";
 
 import Home from "./pages/Home";
 import About from "./pages/About";
@@ -47,11 +48,16 @@ class ErrorBoundary extends Component {
   }
 }
 
+// route order decides slide direction; auth/admin pages slide vertically
+const ROUTE_ORDER = ["/", "/about", "/projects", "/skills", "/certifications",
+  "/reach", "/contact", "/feedback", "/login", "/signup", "/admin", "/manage", "/admanaccess"];
+const VERTICAL = ["/login", "/signup", "/admin", "/manage", "/admanaccess"];
+
 export default function App() {
   const location = useLocation();
   const pageRef = useRef(null);
+  const animRef = useRef(null);
   const [displayLocation, setDisplayLocation] = useState(location);
-  const [transitioning, setTransitioning] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem("pf-theme") || "dark");
 
   // Apply and remember the chosen theme across pages and visits
@@ -62,44 +68,43 @@ export default function App() {
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
-  // Full-page GSAP transition whenever the route changes
+  // Slide the current page out, then swap the route
   useEffect(() => {
     if (location.pathname === displayLocation.pathname) return;
-    setTransitioning(true);
+    const from = ROUTE_ORDER.indexOf(displayLocation.pathname);
+    const to = ROUTE_ORDER.indexOf(location.pathname);
+    const dir = to >= from ? 1 : -1;
+    const vertical = VERTICAL.includes(location.pathname) ||
+                     VERTICAL.includes(displayLocation.pathname);
+    animRef.current = { dir, vertical };
     const tl = gsap.timeline({
       onComplete: () => {
         setDisplayLocation(location);
-        setTransitioning(false);
         window.scrollTo(0, 0);
       },
     });
-    tl.to(pageRef.current, {
-      opacity: 0,
-      y: -36,
-      rotateX: 6,
-      duration: 0.32,
-      ease: "power2.in",
-    });
+    tl.to(pageRef.current,
+      vertical
+        ? { y: -70, opacity: 0, duration: 0.28, ease: "power2.in" }
+        : { x: -90 * dir, opacity: 0, duration: 0.28, ease: "power2.in" });
   }, [location, displayLocation]);
 
-  // Animate the new page in after the route swaps
+  // Slide the new page in from the opposite side
   useEffect(() => {
     if (!pageRef.current) return;
-    gsap.fromTo(
-      pageRef.current,
-      { opacity: 0, y: 44, rotateX: -6 },
-      { opacity: 1, y: 0, rotateX: 0, duration: 0.5, ease: "power3.out" }
-    );
-    // stagger-reveal anything marked .gsap-reveal
+    const { dir = 1, vertical = false } = animRef.current || {};
+    gsap.fromTo(pageRef.current,
+      vertical ? { y: 70, opacity: 0 } : { x: 90 * dir, opacity: 0 },
+      { x: 0, y: 0, opacity: 1, duration: 0.5, ease: "power3.out" });
     gsap.utils.toArray(".gsap-reveal").forEach((el, i) =>
-      gsap.to(el, { opacity: 1, y: 0, duration: 0.6, delay: 0.25 + i * 0.08, ease: "power2.out" })
-    );
+      gsap.to(el, { opacity: 1, y: 0, duration: 0.6, delay: 0.25 + i * 0.08, ease: "power2.out" }));
   }, [displayLocation]);
 
   return (
     <>
       <div className="gradient-backdrop" />
       {displayLocation.pathname !== "/manage" && <ParticlesBackground />}
+      <CursorFX />
       <Navbar theme={theme} onToggleTheme={toggleTheme} />
       <main ref={pageRef} className="page-fade" key={displayLocation.pathname}>
         <ErrorBoundary>
@@ -122,18 +127,6 @@ export default function App() {
         <Footer />
       </main>
       <SocialDock />
-      {transitioning && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 200,
-            background: "var(--grad)",
-            transform: "scaleY(0)",
-          }}
-          ref={(el) => el && gsap.fromTo(el, { scaleY: 0, transformOrigin: "bottom" }, { scaleY: 1, duration: 0.3, ease: "power2.in" })}
-        />
-      )}
     </>
   );
 }
