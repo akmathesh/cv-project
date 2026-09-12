@@ -330,7 +330,7 @@ function SecuritySection() {
   return (
     <div className="fs">
       <div className="fs-head">
-        <span className="fs-num">09</span>
+        <span className="fs-num">10</span>
         <span className="fs-title">Security — Admin Credentials</span>
       </div>
 
@@ -431,6 +431,7 @@ export default function Manage() {
   const social = draft.social || {};
   const cta = draft.cta || {};
   const extras = draft.extras?.items || [];
+  const experience = draft.experience?.items || [];
 
   return (
     <section className="appform">
@@ -534,7 +535,37 @@ export default function Manage() {
         </FormSection>
 
         {/* 06 — social (all optional + dynamic custom links) */}
-        <FormSection num="06" title="Reach Me — Social Links (all optional)" onSave={() => save("social")} onClear={() => clear("social")}>
+        {/* 06 — experience (job profile) */}
+        <FormSection num="06" title="Experience — Job Profile" onSave={() => save("experience")} onClear={() => clear("experience")}>
+          <p className="muted" style={{ fontSize: "0.8rem", marginBottom: 14 }}>
+            Add your work history newest first. Each entry appears on the home
+            page as a timeline entry.
+          </p>
+          {experience.map((item, i) => (
+            <div className="af-item" key={i}>
+              <div className="af-grid">
+                <AfField label="Job title" value={item.role}
+                         onChange={(v) => set("experience", { items: experience.map((x, j) => j === i ? { ...x, role: v } : x) })} />
+                <AfField label="Company" value={item.company}
+                         onChange={(v) => set("experience", { items: experience.map((x, j) => j === i ? { ...x, company: v } : x) })} />
+                <AfField label="Period (e.g. 2023 – Present)" value={item.period} full
+                         onChange={(v) => set("experience", { items: experience.map((x, j) => j === i ? { ...x, period: v } : x) })} />
+                <AfArea label="What you did (each line = one point)" value={item.description}
+                        onChange={(v) => set("experience", { items: experience.map((x, j) => j === i ? { ...x, description: v } : x) })} />
+              </div>
+              <button className="af-btn small ghosted" style={{ marginTop: 10 }}
+                      onClick={() => set("experience", { items: experience.filter((_, j) => j !== i) })}>
+                ✕ Remove experience
+              </button>
+            </div>
+          ))}
+          <button className="af-btn small"
+                  onClick={() => set("experience", { items: [...experience, { role: "", company: "", period: "", description: "" }] })}>
+            + Add experience
+          </button>
+        </FormSection>
+
+        <FormSection num="07" title="Reach Me — Social Links (all optional)" onSave={() => save("social")} onClear={() => clear("social")}>
           <p className="muted" style={{ fontSize: "0.8rem", marginBottom: 14 }}>
             Every field is optional — anything left empty is hidden from the public site automatically.
             Use “Add another link” for anything else (GitHub, X/Twitter, Discord, Blog…).
@@ -581,7 +612,7 @@ export default function Manage() {
         </FormSection>
 
         {/* 07 — cta */}
-        <FormSection num="07" title="Call to Action" onSave={() => save("cta")} onClear={() => clear("cta")}>
+        <FormSection num="08" title="Call to Action" onSave={() => save("cta")} onClear={() => clear("cta")}>
           <div className="af-grid">
             <AfField label="Heading" value={cta.heading} onChange={(v) => set("cta", { heading: v })} full />
             <AfField label="Text" value={cta.text} onChange={(v) => set("cta", { text: v })} full />
@@ -591,7 +622,7 @@ export default function Manage() {
         </FormSection>
 
         {/* 08 — extra sections (admin-defined, shown on the home page) */}
-        <FormSection num="08" title="Extra Sections — Add Your Own Content" onSave={() => save("extras")} onClear={() => clear("extras")}>
+        <FormSection num="09" title="Extra Sections — Add Your Own Content" onSave={() => save("extras")} onClear={() => clear("extras")}>
           <p className="muted" style={{ fontSize: "0.8rem", marginBottom: 14 }}>
             Add any additional content blocks (Experience, Achievements, Hobbies…).
             Each one appears on the visitor&apos;s home page below the call-to-action,
@@ -619,7 +650,7 @@ export default function Manage() {
           </button>
         </FormSection>
 
-        {/* 09 — security */}
+        {/* 10 — security */}
         <SecuritySection />
 
         <div className="af-sign">

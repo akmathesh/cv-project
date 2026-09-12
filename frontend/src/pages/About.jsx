@@ -65,7 +65,7 @@ export default function About() {
               rel="noreferrer"
               style={{ marginTop: 10 }}
             >
-              ⬇ Download Resume
+              Download Resume
             </a>
           ) : null}
         </div>

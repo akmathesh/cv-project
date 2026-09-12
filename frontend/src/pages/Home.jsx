@@ -65,6 +65,28 @@ export default function Home() {
         </section>
       ) : null}
 
+      {/* experience timeline */}
+      {(content?.experience?.items || []).filter((e) => e.role || e.company || e.description).length > 0 && (
+        <section className="section" style={{ minHeight: "auto", paddingTop: 48 }}>
+          <h2 className="section-title">Experience</h2>
+          <div className="timeline">
+            {(content.experience.items || [])
+              .filter((e) => e.role || e.company || e.description)
+              .map((e, i) => (
+                <div key={i} className="timeline-item glass gsap-reveal">
+                  <h3>{e.role || "Role"}</h3>
+                  <div className="tl-meta">
+                    {e.company || ""}{e.company && e.period ? " · " : ""}{e.period || ""}
+                  </div>
+                  {(e.description || "").split("\n").filter((t) => t.trim()).map((p, j) => (
+                    <p key={j} className="muted" style={{ marginBottom: 6, lineHeight: 1.7 }}>{p}</p>
+                  ))}
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
+
       <section className="section" style={{ minHeight: "50vh" }}>
         <div className="glass" style={{ padding: "48px 32px", textAlign: "center" }}>
           <h2 className="section-title">{cta.heading || "Let's build something together"}</h2>
