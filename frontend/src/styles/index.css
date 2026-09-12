@@ -13,6 +13,51 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* ---- light (day) theme overrides ---- */
+[data-theme="light"] {
+  --bg: #f3f3fb;
+  --bg-2: #ffffff;
+  --card: rgba(255, 255, 255, 0.78);
+  --card-border: rgba(30, 30, 80, 0.14);
+  --text: #1b1b2f;
+  --muted: #5a5a75;
+}
+[data-theme="light"] .gradient-backdrop {
+  background:
+    radial-gradient(60% 50% at 15% 10%, rgba(124, 58, 237, 0.12), transparent 60%),
+    radial-gradient(50% 45% at 85% 20%, rgba(6, 182, 212, 0.10), transparent 60%),
+    radial-gradient(55% 50% at 50% 95%, rgba(236, 72, 153, 0.10), transparent 60%),
+    linear-gradient(160deg, #f3f3fb, #ffffff 60%, #eef0ff);
+  animation: bgShift 18s ease-in-out infinite alternate;
+}
+[data-theme="light"] .glass { box-shadow: 0 10px 40px rgba(40, 40, 100, 0.10); }
+[data-theme="light"] .navbar { background: rgba(255, 255, 255, 0.85); }
+[data-theme="light"] .navbar a { color: var(--muted); }
+[data-theme="light"] .navbar a:hover,
+[data-theme="light"] .navbar a.active { color: #111; background: rgba(20, 20, 60, 0.08); }
+[data-theme="light"] .af-sheet { background: rgba(255, 255, 255, 0.88); }
+[data-theme="light"] .af-field input,
+[data-theme="light"] .af-field textarea,
+[data-theme="light"] .af-field select,
+[data-theme="light"] .af-field input { border-bottom-color: rgba(30, 30, 80, 0.35); }
+[data-theme="light"] .af-field textarea { border-color: rgba(30, 30, 80, 0.18); }
+[data-theme="light"] .social-item { background: rgba(20, 20, 60, 0.06); }
+[data-theme="light"] .social-item:hover { background: rgba(124, 58, 237, 0.18); }
+[data-theme="light"] .oauth-btn { background: #fff; color: #222; }
+[data-theme="light"] .marquee-band { background: linear-gradient(100deg, #dcdcff, #ffffff 45%, #dcdcff); }
+[data-theme="light"] .footer { border-top-color: rgba(30, 30, 80, 0.15); }
+[data-theme="light"] .form-card input,
+[data-theme="light"] .form-card textarea,
+[data-theme="light"] .form-card select { background: rgba(255, 255, 255, 0.8); color: var(--text); }
+.theme-toggle {
+  background: none; border: 1px solid var(--card-border);
+  border-radius: 999px; cursor: pointer;
+  width: 34px; height: 34px; font-size: 1rem;
+  display: grid; place-items: center; margin-left: 4px;
+  transition: transform 0.2s;
+}
+.theme-toggle:hover { transform: rotate(15deg) scale(1.08); }
+
 html { scroll-behavior: smooth; }
 
 body {

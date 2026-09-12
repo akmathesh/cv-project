@@ -50,7 +50,7 @@ export default function Signup() {
         <div className="field">
           <label>Password (6–16 characters)</label>
           <PasswordInput required minLength={6} maxLength={16} value={password}
-                         onChange={setPassword} />
+                         onChange={setPassword} showStrength />
         </div>
         <button className="btn" type="submit">Sign Up</button>
         <div className="oauth-divider"><span>or</span></div>

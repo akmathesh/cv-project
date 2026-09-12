@@ -108,7 +108,7 @@ export default function AdminAccess() {
             </div>
             <div className="field">
               <label>Password</label>
-              <PasswordInput required value={password} onChange={setPassword} />
+              <PasswordInput required value={password} onChange={setPassword} showStrength />
             </div>
             <div className="field">
               <label>Phone number (saved to your admin account)</label>

@@ -213,6 +213,7 @@ function SecuritySection() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [notifyEmail, setNotifyEmail] = useState("");
   const [msg, setMsg] = useState(null);
 
   useEffect(() => {
@@ -220,6 +221,7 @@ function SecuritySection() {
       const meta = user.user_metadata || {};
       setUsername(meta.username || "");
       setPhone(meta.phone || "");
+      setNotifyEmail(meta.notify_email || user.email || "");
       setEmail(user.email || "");
     }
   }, [user]);
@@ -231,7 +233,7 @@ function SecuritySection() {
     }
     try {
       await updateAdminCredentials(
-        { username: username || undefined, email: email || undefined, password: password || undefined },
+        { username: username || undefined, email: email || undefined, password: password || undefined, notify_email: notifyEmail || undefined },
         token
       );
       if (phone.trim()) await supabase.auth.updateUser({ data: { phone: phone.trim() } });
@@ -255,8 +257,9 @@ function SecuritySection() {
         <AfField label="Phone number" value={phone} onChange={setPhone} type="tel" />
         <div className="af-field full">
           <label>New password (6–16 chars, leave blank to keep current)</label>
-          <PasswordInput value={password} onChange={setPassword} maxLength={16} minLength={6} />
+          <PasswordInput value={password} onChange={setPassword} maxLength={16} minLength={6} showStrength />
         </div>
+        <AfField label="Feedback notification email (where new visitor feedback is sent)" value={notifyEmail} onChange={setNotifyEmail} type="email" full />
       </div>
       <button className="af-btn small" style={{ marginTop: 10 }} onClick={saveCreds}>Save credentials</button>
       {msg && <p className={msg.ok ? "ok-msg" : "error-msg"} style={{ marginTop: 8 }}>{msg.t}</p>}

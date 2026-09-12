@@ -173,23 +173,28 @@ class Credentials(BaseModel):
     username: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None
+    notify_email: Optional[str] = None
 
 
 @app.put("/api/admin/credentials")
 async def update_credentials(body: Credentials, user: dict = Depends(require_admin_verified)):
-    """Admin can change their own username / email / password at any time."""
+    """Admin can change their own username / email / password /
+    feedback-notification email at any time."""
     uid = user["id"]
     patch: dict = {}
+    meta = dict(user.get("user_metadata") or {})
     if body.email:
         patch["email"] = body.email
         patch["email_confirm"] = True
     if body.password:
-        if len(body.password) < 6:
-            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        if len(body.password) < 6 or len(body.password) > 16:
+            raise HTTPException(status_code=400, detail="Password must be 6 to 16 characters")
         patch["password"] = body.password
     if body.username:
-        meta = dict(user.get("user_metadata") or {})
         meta["username"] = body.username
+    if body.notify_email:
+        meta["notify_email"] = body.notify_email
+    if meta != (user.get("user_metadata") or {}):
         patch["user_metadata"] = meta
     if not patch:
         raise HTTPException(status_code=400, detail="Nothing to update")
@@ -304,6 +309,32 @@ async def upload(filename: str, content_type: str, data: bytes,
 
 
 # ---------------------------------------------------------------- feedback
+async def notify_admin_of_feedback(name: str, role: Optional[str], message: str, rating: Optional[int]):
+    """Email the admin about new feedback. Uses their notify_email
+    (settable from the admin page) or falls back to the account email.
+    Never fails the feedback submission itself."""
+    try:
+        admins = await sb("admin_profiles", params={"select": "user_id"})
+        if not admins:
+            return
+        uid = admins[0]["user_id"]
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.get(f"{SUPABASE_URL}/auth/v1/admin/users/{uid}",
+                                 headers={"apikey": SUPABASE_SERVICE_KEY,
+                                          "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"})
+        if r.status_code != 200:
+            return
+        u = r.json()
+        meta = u.get("user_metadata") or {}
+        to = meta.get("notify_email") or u.get("email")
+        smtp_send(to, "New portfolio feedback received",
+                  f"New feedback on your portfolio:\n\n"
+                  f"From: {name}{(' (' + role + ')') if role else ''}\n"
+                  f"Rating: {'*' * (rating or 5)}\n\n{message}")
+    except Exception:
+        pass
+
+
 class Feedback(BaseModel):
     name: str
     role: Optional[str] = ""
@@ -316,6 +347,7 @@ async def create_feedback(fb: Feedback):
     await sb("feedback", "POST",
              json_body=fb.dict(),
              headers={"Prefer": "return=minimal"})
+    await notify_admin_of_feedback(fb.name, fb.role, fb.message, fb.rating)
     return {"ok": True}
 
 

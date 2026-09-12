@@ -13,6 +13,7 @@ import Projects from "./pages/Projects";
 import Skills from "./pages/Skills";
 import Certifications from "./pages/Certifications";
 import Contact from "./pages/Contact";
+import Reach from "./pages/Reach";
 import Feedback from "./pages/Feedback";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -51,6 +52,15 @@ export default function App() {
   const pageRef = useRef(null);
   const [displayLocation, setDisplayLocation] = useState(location);
   const [transitioning, setTransitioning] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem("pf-theme") || "dark");
+
+  // Apply and remember the chosen theme across pages and visits
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("pf-theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
   // Full-page GSAP transition whenever the route changes
   useEffect(() => {
@@ -90,7 +100,7 @@ export default function App() {
     <>
       <div className="gradient-backdrop" />
       {displayLocation.pathname !== "/manage" && <ParticlesBackground />}
-      <Navbar />
+      <Navbar theme={theme} onToggleTheme={toggleTheme} />
       <main ref={pageRef} className="page-fade" key={displayLocation.pathname}>
         <ErrorBoundary>
           <Routes location={displayLocation}>
@@ -100,6 +110,7 @@ export default function App() {
             <Route path="/skills" element={<Skills />} />
             <Route path="/certifications" element={<Certifications />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/reach" element={<Reach />} />
             <Route path="/feedback" element={<Feedback />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
