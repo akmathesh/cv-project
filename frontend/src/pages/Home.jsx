@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import ThreeHero from "../components/ThreeHero";
 import { useContent } from "../context/ContentContext";
+import { downloadUrl } from "../lib/api";
 
 export default function Home() {
   const { content } = useContent();
@@ -30,7 +31,7 @@ export default function Home() {
             </p>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               {profile.resume_url ? (
-                <a className="btn" href={profile.resume_url} download target="_blank" rel="noreferrer">
+                <a className="btn" href={downloadUrl(profile.resume_url)} download target="_blank" rel="noreferrer">
                   ⬇ Download Resume
                 </a>
               ) : null}

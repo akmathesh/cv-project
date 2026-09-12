@@ -1,6 +1,7 @@
 import { NavLink, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useContent } from "../context/ContentContext";
+import { downloadUrl } from "../lib/api";
 
 const LINKS = [
   { to: "/", label: "Home" },
@@ -39,6 +40,12 @@ export default function Navbar({ theme, onToggleTheme }) {
               aria-label="Toggle day/night theme">
         {theme === "dark" ? "☀️" : "🌙"}
       </button>
+      {content?.profile?.resume_url && (
+        <a className="resume-nav" href={downloadUrl(content.profile.resume_url)}
+           target="_blank" rel="noreferrer" title="Download resume">
+          ⬇ Resume
+        </a>
+      )}
       {user ? (
         <a href="#!" onClick={handleLogout} title={`Signed in as ${user.email}`}
            style={{ color: "#f87171" }}>

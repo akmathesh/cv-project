@@ -1,5 +1,6 @@
 import { useContent } from "../context/ContentContext";
 import Card3D from "../components/Card3D";
+import { downloadUrl } from "../lib/api";
 
 export default function About() {
   const { content } = useContent();
@@ -58,7 +59,7 @@ export default function About() {
           {profile.resume_url ? (
             <a
               className="btn"
-              href={profile.resume_url}
+              href={downloadUrl(profile.resume_url)}
               download
               target="_blank"
               rel="noreferrer"

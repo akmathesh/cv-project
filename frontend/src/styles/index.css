@@ -57,6 +57,17 @@
   transition: transform 0.2s;
 }
 .theme-toggle:hover { transform: rotate(15deg) scale(1.08); }
+.resume-nav {
+  background: var(--grad);
+  color: #fff !important;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.resume-nav:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(124, 58, 237, 0.4); }
 
 html { scroll-behavior: smooth; }
 
@@ -433,7 +444,7 @@ button { font-family: inherit; }
   -webkit-background-clip: text; background-clip: text; color: transparent;
   display: inline-block;
 }
-.fs { border-bottom: 1px dashed rgba(255, 255, 255, 0.15); padding: 26px 0 16px; }
+.fs { border-bottom: 1px dashed rgba(255, 255, 255, 0.15); padding: 26px 0 16px; scroll-margin-top: 100px; }
 .fs:last-of-type { border-bottom: none; }
 .fs-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
 .fs-num {

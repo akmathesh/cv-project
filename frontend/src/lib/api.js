@@ -1,5 +1,10 @@
 const API = import.meta.env.VITE_API_URL || "";
 
+// Cross-origin `download` attributes are ignored by browsers — appending
+// this to a Supabase storage URL forces a real download instead of opening.
+export const downloadUrl = (url) =>
+  url ? url + (url.includes("?") ? "&" : "?") + "download" : url;
+
 async function req(path, options = {}) {
   const res = await fetch(`${API}${path}`, {
     ...options,

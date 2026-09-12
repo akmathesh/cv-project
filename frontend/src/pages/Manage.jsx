@@ -155,16 +155,28 @@ function AfField({ label, value, onChange, type = "text", placeholder, full }) {
     <div className={`af-field ${full ? "full" : ""}`}>
       <label>{label}</label>
       <input type={type} value={value ?? ""} placeholder={placeholder}
+             spellCheck={false} autoCorrect="off" autoCapitalize="off"
              onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
 
-function AfArea({ label, value, onChange, rows = 3, full = true }) {
+function AfArea({ label, value, onChange, rows = 4, full = true, placeholder }) {
+  const ref = useRef(null);
+  // auto-grow: the box expands as you type, so long descriptions are easy
+  const grow = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + 2}px`;
+  };
+  useEffect(() => { grow(); }, [value]);
   return (
     <div className={`af-field ${full ? "full" : ""}`}>
       <label>{label}</label>
-      <textarea rows={rows} value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
+      <textarea ref={ref} rows={rows} value={value ?? ""} placeholder={placeholder}
+                spellCheck={false} autoCorrect="off" autoCapitalize="off"
+                onChange={(e) => { onChange(e.target.value); grow(); }} />
     </div>
   );
 }
@@ -172,17 +184,38 @@ function AfArea({ label, value, onChange, rows = 3, full = true }) {
 function AfUpload({ label, value, onChange, token, accept = "image/*", aspect }) {
   const [busy, setBusy] = useState(false);
   const [cropSrc, setCropSrc] = useState(null);
+  const [localFile, setLocalFile] = useState(null); // last picked/cropped file
 
   const doUpload = async (file) => {
     setBusy(true);
     try {
       const { url } = await uploadFile(file, token);
       onChange(url);
+      setLocalFile(file);
       window.dispatchEvent(new CustomEvent("pf-toast", { detail: `${label.split("(")[0].trim()} uploaded ✓` }));
     } catch (err) {
       alert(`Upload failed: ${err.message}`);
     }
     setBusy(false);
+  };
+
+  // Re-open the crop tool for an already-saved image:
+  // use the local copy when available, otherwise fetch it from its URL.
+  const recrop = async () => {
+    if (localFile) {
+      setCropSrc(URL.createObjectURL(localFile));
+      return;
+    }
+    if (!value) return;
+    try {
+      const res = await fetch(value);
+      if (!res.ok) throw new Error("fetch failed");
+      const blob = await res.blob();
+      setLocalFile(blob);
+      setCropSrc(URL.createObjectURL(blob));
+    } catch {
+      alert("Could not load this image for re-cropping. Re-upload the file to crop it again.");
+    }
   };
 
   const pick = async (e) => {
@@ -208,7 +241,14 @@ function AfUpload({ label, value, onChange, token, accept = "image/*", aspect })
           <input type="file" accept={accept} style={{ display: "none" }} onChange={pick} />
         </label>
       </div>
-      {value ? <img src={value} alt="" className="af-thumb" /> : null}
+      {value ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+          <img src={value} alt="" className="af-thumb" />
+          <button type="button" className="af-btn small ghosted" onClick={recrop} disabled={busy}>
+            ✂ Edit crop
+          </button>
+        </div>
+      ) : null}
       {cropSrc && (
         <CropperModal src={cropSrc} defaultAspect={aspect ?? 1}
                       onCancel={() => setCropSrc(null)}
@@ -224,18 +264,23 @@ function AfUpload({ label, value, onChange, token, accept = "image/*", aspect })
 /* section wrapper with its own save button */
 function FormSection({ num, title, onSave, onClear, children }) {
   const [saved, setSaved] = useState(false);
+  const ref = useRef(null);
+  // After saving, jump to the next section so the admin can keep working
+  const saveAndJump = async () => {
+    await onSave();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1800);
+    const next = ref.current?.nextElementSibling;
+    if (next) next.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   return (
-    <div className="fs">
+    <div className="fs" ref={ref}>
       <div className="fs-head">
         <span className="fs-num">{num}</span>
         <span className="fs-title">{title}</span>
         <div className="fs-actions">
           <button className="af-btn small ghosted" onClick={onClear}>Reset</button>
-          <button className="af-btn small" onClick={async () => {
-            await onSave();
-            setSaved(true);
-            setTimeout(() => setSaved(false), 1800);
-          }}>{saved ? "Saved ✓" : "Save"}</button>
+          <button className="af-btn small" onClick={saveAndJump}>{saved ? "Saved ✓" : "Save"}</button>
         </div>
       </div>
       {children}
