@@ -154,6 +154,44 @@ def _otp_hash(code: str) -> str:
     return hashlib.sha256((SUPABASE_SERVICE_KEY[:16] + code.strip()).encode()).hexdigest()
 
 
+async def formsubmit(to: str, subject: str, body: str):
+    """Free email relay (formsubmit.co) — needs no account. The very first
+    email to an address asks the receiver to click one activation link;
+    after that, all messages arrive normally."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.post(f"https://formsubmit.co/ajax/{to}",
+                              json={"_subject": subject, "Message": body,
+                                    "_template": "box"})
+    if r.status_code != 200:
+        raise HTTPException(status_code=502, detail="Email relay refused the message")
+
+
+async def admin_notify_target() -> str:
+    """The email that should receive notifications (admin-set, falls back
+    to the admin account email)."""
+    admins = await sb("admin_profiles", params={"select": "user_id"})
+    if not admins:
+        raise HTTPException(status_code=503, detail="No admin configured yet")
+    uid = admins[0]["user_id"]
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.get(f"{SUPABASE_URL}/auth/v1/admin/users/{uid}",
+                             headers={"apikey": SUPABASE_SERVICE_KEY,
+                                      "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"})
+    if r.status_code != 200:
+        raise HTTPException(status_code=503, detail="Could not resolve the admin email")
+    u = r.json()
+    return (u.get("user_metadata") or {}).get("notify_email") or u.get("email")
+
+
+async def deliver_email(to: str, subject: str, body: str) -> str:
+    """SMTP when configured, FormSubmit relay otherwise. Returns the channel."""
+    if os.environ.get("SMTP_USER") and os.environ.get("SMTP_PASSWORD"):
+        smtp_send(to, subject, body)
+        return "smtp"
+    await formsubmit(to, subject, body)
+    return "formsubmit"
+
+
 # ---------------------------------------------------------------- content
 # Admin-edited content lives in its own table ("admin_content") once the
 # admin runs backend/admin_content_table.sql in Supabase. Until then the
@@ -272,17 +310,16 @@ async def send_2fa_code(user: dict = Depends(require_admin)):
     }})
     meta = r.get("user_metadata") or {}
     try:
-        smtp_send(user.get("email"), "Your portfolio admin verification code",
-                  f"Your verification code is: {code}\n\n"
-                  f"It expires in 5 minutes.\nIf you did not request this, ignore this email.")
-        return {"ok": True, "sent_to": user.get("email"), "phone_on_file": meta.get("phone", "")}
-    except HTTPException as e:
-        if e.status_code == 503:
-            # Email not configured: demo mode — hand the code to the admin
-            # directly (they already passed the username+password gate).
-            return {"ok": True, "demo": True, "code": code,
-                    "detail": "SMTP not configured on the server yet."}
-        raise
+        via = await deliver_email(user.get("email"), "Your portfolio admin verification code",
+                                  f"Your verification code is: {code}\n\n"
+                                  f"It expires in 5 minutes.\nIf you did not request this, ignore this email.")
+        return {"ok": True, "sent_to": user.get("email"), "via": via,
+                "phone_on_file": meta.get("phone", "")}
+    except Exception:
+        # No delivery channel available: demo mode — hand the code to the
+        # admin directly (they already passed the username+password gate).
+        return {"ok": True, "demo": True, "code": code,
+                "detail": "Email delivery is not available yet."}
 
 
 @app.post("/api/admin/2fa/verify")
@@ -370,25 +407,34 @@ async def notify_admin_of_feedback(name: str, role: Optional[str], message: str,
     (settable from the admin page) or falls back to the account email.
     Never fails the feedback submission itself."""
     try:
-        admins = await sb("admin_profiles", params={"select": "user_id"})
-        if not admins:
-            return
-        uid = admins[0]["user_id"]
-        async with httpx.AsyncClient(timeout=30) as client:
-            r = await client.get(f"{SUPABASE_URL}/auth/v1/admin/users/{uid}",
-                                 headers={"apikey": SUPABASE_SERVICE_KEY,
-                                          "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"})
-        if r.status_code != 200:
-            return
-        u = r.json()
-        meta = u.get("user_metadata") or {}
-        to = meta.get("notify_email") or u.get("email")
-        smtp_send(to, "New portfolio feedback received",
-                  f"New feedback on your portfolio:\n\n"
-                  f"From: {name}{(' (' + role + ')') if role else ''}\n"
-                  f"Rating: {'*' * (rating or 5)}\n\n{message}")
+        to = await admin_notify_target()
+        await deliver_email(to, "New portfolio feedback received",
+                            f"New feedback on your portfolio:\n\n"
+                            f"From: {name}{(' (' + role + ')') if role else ''}\n"
+                            f"Rating: {'*' * (rating or 5)}\n\n{message}")
     except Exception:
         pass
+
+
+class ContactBody(BaseModel):
+    name: str
+    email: Optional[str] = ""
+    message: str
+
+
+@app.post("/api/contact")
+async def contact_message(body: ContactBody):
+    """Visitor contact form — delivered to the admin's notification email."""
+    to = await admin_notify_target()
+    text = (f"Portfolio contact form\n\nFrom: {body.name}"
+            + (f" <{body.email}>" if body.email else "")
+            + f"\n\n{body.message}")
+    try:
+        await deliver_email(to, "New portfolio contact message", text)
+    except Exception:
+        raise HTTPException(status_code=502,
+                            detail="The message could not be delivered right now. Please try again later.")
+    return {"ok": True}
 
 
 class Feedback(BaseModel):

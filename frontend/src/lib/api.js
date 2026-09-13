@@ -47,6 +47,13 @@ export async function updateAdminCredentials(creds, token) {
   });
 }
 
+export async function sendContactMessage({ name, email, message }) {
+  return req("/api/contact", {
+    method: "POST",
+    body: JSON.stringify({ name, email, message }),
+  });
+}
+
 export async function signupUser({ email, password, name }) {
   return req("/api/auth/signup", {
     method: "POST",

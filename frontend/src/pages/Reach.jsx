@@ -42,7 +42,7 @@ export default function Reach() {
         {items.map((c) => (
           <a key={c.key} href={c.href}
              target={c.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer"
-             className="social-item gsap-reveal"
+             className="social-item social-3d gsap-reveal"
              style={{ width: 116, height: 116, display: "flex", flexDirection: "column", gap: 6, fontSize: "2rem",
                       color: SOCIAL_COLORS[c.key] || "var(--text)" }}
              title={c.label}>

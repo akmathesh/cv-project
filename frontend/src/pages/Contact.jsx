@@ -5,13 +5,23 @@ import SocialIcon, { SOCIAL_COLORS } from "../components/SocialIcon";
 export default function Contact() {
   const { content } = useContent();
   const s = content?.social || {};
-  const [form, setForm] = useState({ name: "", message: "" });
+  const [form, setForm] = useState({ name: "", email: "", message: "" });
+  const [status, setStatus] = useState(null);
+  const [busy, setBusy] = useState(false);
 
-  const send = (e) => {
+  // Delivered to the admin's notification email through the backend
+  const send = async (e) => {
     e.preventDefault();
-    const subject = encodeURIComponent(`Portfolio contact from ${form.name}`);
-    const body = encodeURIComponent(form.message);
-    window.location.href = `mailto:${s.email || ""}?subject=${subject}&body=${body}`;
+    setBusy(true);
+    setStatus(null);
+    try {
+      await sendContactMessage(form);
+      setStatus({ ok: true, msg: "Message sent ✓ — I will get back to you soon." });
+      setForm({ name: "", email: "", message: "" });
+    } catch (err) {
+      setStatus({ ok: false, msg: err.message });
+    }
+    setBusy(false);
   };
 
   const circle = [
@@ -50,23 +60,23 @@ export default function Contact() {
 
       <form className="glass form-card" onSubmit={send}>
         <h2 className="section-title" style={{ fontSize: "1.4rem" }}>Mail Me</h2>
-        {!s.email && (
-          <p className="muted" style={{ marginBottom: 14, fontSize: "0.85rem" }}>
-            Email is not configured yet — use the contact circles above or check back soon.
-          </p>
-        )}
+        {status && <p className={status.ok ? "ok-msg" : "error-msg"}>{status.msg}</p>}
         <div className="field">
           <label>Your name</label>
           <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>Your email (optional, so I can reply)</label>
+          <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </div>
         <div className="field">
           <label>Message</label>
           <textarea rows={5} required value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })} />
         </div>
-        <button className="btn" type="submit" disabled={!s.email}
-                style={!s.email ? { opacity: 0.5, cursor: "not-allowed" } : undefined}>
-          ✉ Send Email
+        <button className="btn" type="submit" disabled={busy}
+                style={busy ? { opacity: 0.6, cursor: "wait" } : undefined}>
+          {busy ? "Sending…" : "✉ Send Message"}
         </button>
       </form>
     </section>

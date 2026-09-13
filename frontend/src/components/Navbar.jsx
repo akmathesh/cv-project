@@ -26,8 +26,9 @@ export default function Navbar({ theme, onToggleTheme }) {
   };
 
   return (
-    <nav className="navbar glass">
-      <div className="nav-row nav-links">
+    <>
+      {/* centered navigation bar */}
+      <nav className="navbar glass">
         <NavLink to="/" end className="nav-brand">
           {name.split(" ")[0]}
           <span style={{ color: "var(--accent-2)" }}>.</span>
@@ -43,8 +44,10 @@ export default function Navbar({ theme, onToggleTheme }) {
             ⬇ Resume
           </a>
         )}
-      </div>
-      <div className="nav-row nav-auth">
+      </nav>
+
+      {/* pinned top-right corner: theme + auth */}
+      <div className="auth-corner glass">
         <button type="button" className="theme-toggle" onClick={onToggleTheme}
                 title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
                 aria-label="Toggle day/night theme">
@@ -62,6 +65,7 @@ export default function Navbar({ theme, onToggleTheme }) {
           </>
         )}
       </div>
+
       {/* mobile-only floating resume button, bottom-left */}
       {resume && (
         <a className="resume-fab" href={downloadUrl(resume)}
@@ -69,6 +73,6 @@ export default function Navbar({ theme, onToggleTheme }) {
           ⬇<span>Resume</span>
         </a>
       )}
-    </nav>
+    </>
   );
 }

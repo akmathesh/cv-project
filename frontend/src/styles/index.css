@@ -410,6 +410,45 @@ button { font-family: inherit; }
   margin-bottom: 10px;
 }
 
+/* ---- auth corner: pinned top-right, navbar stays centered ---- */
+.auth-corner {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+}
+@media (max-width: 1100px) {
+  .navbar { top: 68px; }
+}
+@media (max-width: 820px) {
+  .auth-corner { top: 10px; right: 10px; padding: 6px 10px; gap: 8px; }
+  .nav-auth-link { padding: 5px 10px; font-size: 0.8rem; }
+}
+
+/* ---- 3D social badges (Reach Me) ---- */
+.social-3d {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.28), rgba(0, 0, 0, 0.28)),
+    var(--card);
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.45),
+    inset 0 2px 6px rgba(255, 255, 255, 0.35),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.3);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.social-3d:hover {
+  transform: translateY(-6px) rotateX(10deg) rotateY(-10deg) scale(1.05);
+  box-shadow:
+    0 22px 44px rgba(0, 0, 0, 0.55),
+    inset 0 2px 8px rgba(255, 255, 255, 0.45),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.3);
+}
+
 /* ---- skill marquee: transparent glassmorphism band ---- */
 .marquee-band {
   background: rgba(255, 255, 255, 0.06);

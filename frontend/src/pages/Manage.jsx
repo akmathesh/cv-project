@@ -222,7 +222,11 @@ function AfUpload({ label, value, onChange, token, accept = "image/*", aspect })
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (aspect && file.type.startsWith("image/")) {
+    // Some devices/pickers don't set file.type — fall back to the extension
+    const isImage = file.type
+      ? file.type.startsWith("image/")
+      : /\.(jpe?g|png|webp|gif|bmp|avif)$/i.test(file.name);
+    if (aspect && isImage) {
       setCropSrc(URL.createObjectURL(file)); // open the crop tool
       return;
     }
