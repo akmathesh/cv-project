@@ -8,6 +8,7 @@ Portfolio Backend — FastAPI on Vercel.
 - GET  /api/feedback           → list feedback (public, approved only; admin sees all)
 """
 
+import asyncio
 import hashlib
 import os
 import secrets
@@ -60,19 +61,20 @@ async def sb(path: str, method: str = "GET", *, json_body=None, data=None,
 
 
 async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
-    """Validate the Supabase JWT sent by the client and return user info."""
+    """Validate the Supabase JWT sent by the client and return user info.
+    Retries once — GoTrue occasionally hiccups on a freshly issued token."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1]
+    headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {token}"}
     async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(
-            f"{SUPABASE_URL}/auth/v1/user",
-            headers={"apikey": SUPABASE_ANON_KEY,
-                     "Authorization": f"Bearer {token}"},
-        )
-    if resp.status_code != 200:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    return resp.json()
+        for attempt in range(2):
+            resp = await client.get(f"{SUPABASE_URL}/auth/v1/user", headers=headers)
+            if resp.status_code == 200:
+                return resp.json()
+            if attempt == 0:
+                await asyncio.sleep(0.4)
+    raise HTTPException(status_code=resp.status_code, detail="Invalid or expired token")
 
 
 async def get_user_factors(uid: str) -> list:
@@ -158,12 +160,39 @@ async def formsubmit(to: str, subject: str, body: str):
     """Free email relay (formsubmit.co) — needs no account. The very first
     email to an address asks the receiver to click one activation link;
     after that, all messages arrive normally."""
+    origin = (os.environ.get("ALLOWED_ORIGINS", "").split(",")[0].strip()
+              or "https://portfolio-site-five-virid-28.vercel.app")
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.post(f"https://formsubmit.co/ajax/{to}",
                               json={"_subject": subject, "Message": body,
-                                    "_template": "box"})
+                                    "_template": "box"},
+                              headers={"Referer": f"{origin}/",
+                                       "Origin": origin,
+                                       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
     if r.status_code != 200:
         raise HTTPException(status_code=502, detail="Email relay refused the message")
+    data = r.json() if r.content else {}
+    if str(data.get("success", "")).lower() == "false":
+        msg = str(data.get("message", ""))
+        if "activation" in msg.lower():
+            return "needs_activation"
+        raise HTTPException(status_code=502, detail=msg or "Email relay error")
+    return "sent"
+
+
+async def deliver_email(to: str, subject: str, body: str) -> str:
+    """SMTP when configured, FormSubmit relay otherwise. Returns the channel.
+    Raises 503 with an activation hint when the relay awaits one-time activation."""
+    if os.environ.get("SMTP_USER") and os.environ.get("SMTP_PASSWORD"):
+        smtp_send(to, subject, body)
+        return "smtp"
+    res = await formsubmit(to, subject, body)
+    if res == "needs_activation":
+        raise HTTPException(status_code=503,
+                            detail=f"One-time activation needed: FormSubmit just sent an "
+                                   f"'Activate Form' link to {to} — click it, then retry. "
+                                   f"(The code is shown on screen meanwhile.)")
+    return "formsubmit"
 
 
 async def admin_notify_target() -> str:
@@ -181,15 +210,6 @@ async def admin_notify_target() -> str:
         raise HTTPException(status_code=503, detail="Could not resolve the admin email")
     u = r.json()
     return (u.get("user_metadata") or {}).get("notify_email") or u.get("email")
-
-
-async def deliver_email(to: str, subject: str, body: str) -> str:
-    """SMTP when configured, FormSubmit relay otherwise. Returns the channel."""
-    if os.environ.get("SMTP_USER") and os.environ.get("SMTP_PASSWORD"):
-        smtp_send(to, subject, body)
-        return "smtp"
-    await formsubmit(to, subject, body)
-    return "formsubmit"
 
 
 # ---------------------------------------------------------------- content
@@ -431,6 +451,8 @@ async def contact_message(body: ContactBody):
             + f"\n\n{body.message}")
     try:
         await deliver_email(to, "New portfolio contact message", text)
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=502,
                             detail="The message could not be delivered right now. Please try again later.")

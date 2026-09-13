@@ -120,8 +120,13 @@ export default function AdminAccess() {
           <>
             {demoCode ? (
               <p className="ok-msg" style={{ marginBottom: 14 }}>
-                Email isn&apos;t configured on the server yet, so here is your code
-                directly (demo mode): <strong style={{ fontSize: "1.2rem", letterSpacing: "0.2em" }}>{demoCode}</strong>
+                Your verification code (shown here until email delivery is activated):{" "}
+                <strong style={{ fontSize: "1.2rem", letterSpacing: "0.2em" }}>{demoCode}</strong>
+                <br />
+                <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
+                  Also watch for a one-time <strong style={{ color: "var(--text)" }}>"Activate Form"</strong> email
+                  from FormSubmit — clicking its link switches codes to real email delivery.
+                </span>
               </p>
             ) : (
               <p className="muted" style={{ marginBottom: 16, fontSize: "0.85rem" }}>
