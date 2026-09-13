@@ -1,5 +1,9 @@
 import { useContent } from "../context/ContentContext";
-import SocialIcon, { SOCIAL_COLORS } from "../components/SocialIcon";
+import SocialIcon from "../components/SocialIcon";
+import Unicons3DIcon from "../components/Unicons3DIcon";
+
+// socials with dedicated 3D icons from iconscout.com
+const ICONSCOUT_KEYS = ["linkedin", "instagram", "whatsapp", "phone", "email"];
 
 const STANDARD = [
   { key: "linkedin", label: "LinkedIn", icon: "in" },
@@ -38,15 +42,19 @@ export default function Reach() {
         within a day.
       </p>
 
-      <div style={{ display: "flex", gap: 26, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 26, flexWrap: "wrap", justifyContent: "center" }}>
         {items.map((c) => (
           <a key={c.key} href={c.href}
              target={c.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer"
              className="social-item social-3d gsap-reveal"
-             style={{ width: 116, height: 116, display: "flex", flexDirection: "column", gap: 6, fontSize: "2rem",
-                      color: SOCIAL_COLORS[c.key] || "var(--text)" }}
+             style={{ width: 116, height: 116, display: "flex", flexDirection: "column", gap: 6,
+                      alignItems: "center", justifyContent: "center", color: "var(--text)" }}
              title={c.label}>
-            <SocialIcon icon={c.icon} size={44} />
+            {ICONSCOUT_KEYS.includes(c.key) ? (
+              <Unicons3DIcon icon={c.icon} size={48} />
+            ) : (
+              <SocialIcon icon={c.icon} size={44} />
+            )}
             <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>{c.label}</span>
           </a>
         ))}
