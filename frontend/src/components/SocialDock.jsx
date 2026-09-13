@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useContent } from "../context/ContentContext";
 import SocialIcon, { SOCIAL_COLORS } from "./SocialIcon";
 
@@ -11,14 +10,12 @@ const STANDARD = [
 ];
 
 /**
- * Bottom-right contact dock.
- * Desktop/tablet: every link visible, stacked top-to-bottom.
- * Mobile: collapsed inside the "+" button, expanding on tap.
+ * Bottom-right contact dock — always visible, stacked top-to-bottom,
+ * on every device. No "+" button.
  */
 export default function SocialDock() {
   const { content } = useContent();
   const s = content?.social || {};
-  const [open, setOpen] = useState(false);
 
   const href = (key) => {
     if (key === "phone") return `tel:${String(s.phone).replace(/\s+/g, "")}`;
@@ -43,7 +40,7 @@ export default function SocialDock() {
 
   return (
     <div className="social-dock">
-      <div className={`social-items ${open ? "open" : ""}`}>
+      <div className="social-items">
         {items.map((item) => (
           <a key={item.key} className="social-item" href={item.href}
              target={item.href.startsWith("http") ? "_blank" : undefined}
@@ -53,11 +50,6 @@ export default function SocialDock() {
           </a>
         ))}
       </div>
-      <button className={`social-fab ${open ? "" : "pulse"}`}
-              onClick={() => setOpen((o) => !o)}
-              aria-label="Contact links" title={open ? "Close" : "Reach me"}>
-        {open ? "×" : "+"}
-      </button>
     </div>
   );
 }

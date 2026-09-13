@@ -209,35 +209,24 @@ button { font-family: inherit; }
   color: var(--text);
 }
 
-/* ---- navbar: links row on top, auth row underneath ---- */
+/* ---- navbar: original compact pill, centered ---- */
 .navbar {
   position: fixed;
-  top: 14px;
+  top: 16px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
   display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 10px 14px;
-  border-radius: 20px;
-  max-width: calc(100vw - 20px);
-}
-.nav-row { display: flex; align-items: center; gap: 4px; }
-.nav-links { overflow-x: auto; max-width: calc(100vw - 48px); scrollbar-width: none; }
-.nav-links::-webkit-scrollbar { display: none; }
-.nav-brand { font-weight: 700; color: var(--text); padding: 0 6px 0 2px; }
-.nav-auth { justify-content: flex-end; gap: 10px; border-top: 1px solid var(--card-border); padding-top: 7px; }
-.nav-auth-link {
-  padding: 6px 14px;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
   border-radius: 999px;
-  font-size: 0.85rem;
-  color: var(--muted);
-  border: 1px solid var(--card-border);
-  white-space: nowrap;
-  transition: color 0.2s, background 0.2s;
+  max-width: calc(100vw - 24px);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
-.nav-auth-link:hover, .nav-auth-link.active { color: #fff; background: var(--grad); }
+.navbar::-webkit-scrollbar { display: none; }
+.nav-brand { font-weight: 700; color: var(--text); padding: 0 6px 0 2px; }
 .navbar a {
   padding: 8px 14px;
   border-radius: 999px;
@@ -248,13 +237,33 @@ button { font-family: inherit; }
 }
 .navbar a:hover, .navbar a.active { color: #fff; background: rgba(255, 255, 255, 0.09); }
 [data-theme="light"] .navbar a:hover, [data-theme="light"] .navbar a.active { color: #111; background: rgba(20, 20, 60, 0.08); }
+@media (max-width: 1100px) {
+  .navbar { top: 64px; }
+}
 
-/* ---- social dock: vertical stack on desktop, + FAB on mobile ---- */
-.social-items { display: none; flex-direction: column; gap: 10px; align-items: center; }
-.social-items.open { display: flex; }
-@media (min-width: 821px) {
-  .social-items { display: flex; }
-  .social-fab { display: none; }
+/* ---- auth corner: pinned top-right ---- */
+.auth-corner {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+}
+@media (max-width: 820px) {
+  .auth-corner { top: 10px; right: 10px; padding: 6px 10px; gap: 8px; }
+  .nav-auth-link { padding: 5px 10px; font-size: 0.8rem; }
+}
+
+/* ---- social dock: always visible, stacked bottom-right (no + button) ---- */
+.social-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
 }
 .resume-fab {
   display: none;
