@@ -11,6 +11,7 @@ export default function About() {
     <section className="section">
       <h2 className="section-title">{about.heading || "About Me"}</h2>
       <div
+        className="about-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "auto 1fr",
@@ -19,29 +20,50 @@ export default function About() {
           marginBottom: "15px",
         }}
       >
-        {profile.profile_image_url ? (
-          <img
-            src={profile.profile_image_url}
-            alt={profile.name}
-            style={{
-              width: 180,
-              height: 180,
-              borderRadius: "50%",
-              objectFit: "cover",
-              border: "3px solid var(--accent)",
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              width: 180,
-              height: 180,
-              borderRadius: "50%",
-              background: "var(--grad)",
-              opacity: 0.4,
-            }}
-          />
-        )}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
+          {profile.profile_image_url ? (
+            <img
+              src={profile.profile_image_url}
+              alt={profile.name}
+              style={{
+                width: 180,
+                height: 180,
+                borderRadius: "50%",
+                objectFit: "cover",
+                border: "3px solid var(--accent)",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 180,
+                height: 180,
+                borderRadius: "50%",
+                background: "var(--grad)",
+                opacity: 0.4,
+              }}
+            />
+          )}
+          {profile.resume_url ? (
+            <a
+              className="btn"
+              href={downloadUrl(profile.resume_url)}
+              download
+              target="_blank"
+              rel="noreferrer"
+              style={{ padding: "9px 18px", fontSize: "0.85rem" }}
+            >
+              ⬇ Resume
+            </a>
+          ) : null}
+        </div>
         <div>
           {(
             about.paragraphs || [
@@ -56,18 +78,6 @@ export default function About() {
               {p}
             </p>
           ))}
-          {profile.resume_url ? (
-            <a
-              className="btn"
-              href={downloadUrl(profile.resume_url)}
-              download
-              target="_blank"
-              rel="noreferrer"
-              style={{ marginTop: 10 }}
-            >
-              Download Resume
-            </a>
-          ) : null}
         </div>
       </div>
 

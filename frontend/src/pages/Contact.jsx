@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useContent } from "../context/ContentContext";
+import SocialIcon, { SOCIAL_COLORS } from "../components/SocialIcon";
 
 export default function Contact() {
   const { content } = useContent();
@@ -36,9 +37,10 @@ export default function Contact() {
         {circle.length ? (
           circle.map((c) => (
             <a key={c.label} href={c.href} target={c.href.startsWith("http") ? "_blank" : undefined}
-               rel="noreferrer" className="social-item" style={{ width: 64, height: 64, fontSize: "1.3rem" }}
+               rel="noreferrer" className="social-item"
+               style={{ width: 64, height: 64, color: SOCIAL_COLORS[c.icon] || "var(--text)" }}
                title={c.label}>
-              {c.icon}
+              <SocialIcon icon={c.icon} size={26} />
             </a>
           ))
         ) : (

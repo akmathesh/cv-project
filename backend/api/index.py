@@ -173,6 +173,36 @@ async def resolve_content_table() -> str:
     return CONTENT_TABLE
 
 
+class SignupBody(BaseModel):
+    email: str
+    password: str
+    name: Optional[str] = ""
+
+
+@app.post("/api/auth/signup")
+async def auth_signup(body: SignupBody):
+    """Public signup. Creates the account pre-confirmed so visitors are
+    never blocked by confirmation emails that may not arrive."""
+    import re
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", body.email or ""):
+        raise HTTPException(status_code=400, detail="Please enter a valid email address.")
+    if len(body.password or "") < 6 or len(body.password) > 16:
+        raise HTTPException(status_code=400, detail="Password must be 6 to 16 characters.")
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.post(f"{SUPABASE_URL}/auth/v1/admin/users",
+                              headers={"apikey": SUPABASE_SERVICE_KEY,
+                                       "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"},
+                              json={"email": body.email, "password": body.password,
+                                    "email_confirm": True,
+                                    "user_metadata": {"name": body.name or ""}})
+    if r.status_code not in (200, 201):
+        if "already" in r.text.lower() or "registered" in r.text.lower():
+            raise HTTPException(status_code=409,
+                                detail="This email is already registered — try logging in instead.")
+        raise HTTPException(status_code=502, detail="Could not create the account right now. Try again.")
+    return {"ok": True}
+
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "time": datetime.utcnow().isoformat()}

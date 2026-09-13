@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { signupUser } from "../lib/api";
 import PasswordInput from "../components/PasswordInput";
 
 export default function Signup() {
@@ -8,21 +9,26 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
-    if (password.length < 6 || password.length > 16) {
-      return setError("Password must be 6 to 16 characters.");
+    setBusy(true);
+    try {
+      if (password.length < 6 || password.length > 16) {
+        throw new Error("Password must be 6 to 16 characters.");
+      }
+      // Created via the backend with auto-confirmation — no email to wait for
+      await signupUser({ email, password, name });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      navigate("/");
+    } catch (err) {
+      setError(err.message);
     }
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { name } },
-    });
-    if (error) return setError(error.message);
-    navigate("/");
+    setBusy(false);
   };
 
   const google = async () => {
@@ -52,7 +58,10 @@ export default function Signup() {
           <PasswordInput required minLength={6} maxLength={16} value={password}
                          onChange={setPassword} showStrength />
         </div>
-        <button className="btn" type="submit">Sign Up</button>
+        <button className="btn" type="submit" disabled={busy}
+                style={busy ? { opacity: 0.6, cursor: "wait" } : undefined}>
+          {busy ? "Creating account…" : "Sign Up"}
+        </button>
         <div className="oauth-divider"><span>or</span></div>
         <button className="btn oauth-btn" type="button" onClick={google}>
           <strong style={{ color: "#4285F4" }}>G</strong> Continue with Google

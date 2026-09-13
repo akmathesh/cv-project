@@ -1,4 +1,5 @@
 import { useContent } from "../context/ContentContext";
+import SocialIcon, { SOCIAL_COLORS } from "../components/SocialIcon";
 
 const STANDARD = [
   { key: "linkedin", label: "LinkedIn", icon: "in" },
@@ -42,9 +43,10 @@ export default function Reach() {
           <a key={c.key} href={c.href}
              target={c.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer"
              className="social-item gsap-reveal"
-             style={{ width: 116, height: 116, display: "flex", flexDirection: "column", gap: 6, fontSize: "2rem" }}
+             style={{ width: 116, height: 116, display: "flex", flexDirection: "column", gap: 6, fontSize: "2rem",
+                      color: SOCIAL_COLORS[c.key] || "var(--text)" }}
              title={c.label}>
-            {c.icon}
+            <SocialIcon icon={c.icon} size={44} />
             <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>{c.label}</span>
           </a>
         ))}

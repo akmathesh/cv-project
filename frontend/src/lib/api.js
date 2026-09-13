@@ -47,6 +47,13 @@ export async function updateAdminCredentials(creds, token) {
   });
 }
 
+export async function signupUser({ email, password, name }) {
+  return req("/api/auth/signup", {
+    method: "POST",
+    body: JSON.stringify({ email, password, name }),
+  });
+}
+
 export async function sendAdminCode(token) {
   return req("/api/admin/2fa/send", {
     method: "POST",
